@@ -11,7 +11,8 @@ const { data, loading, error } = useLoader(() =>
 
 <template>
   <div class="page">
-    <div class="page-header">
+    <div class="page-header" style="justify-content: flex-start; gap: 12px">
+      <img src="/logo.png" alt="GotYouBro" width="56" height="56" />
       <div>
         <h1>Hey {{ auth.user?.firstName ?? 'there' }} 👋</h1>
         <div class="hint">GotYouBro has your back.</div>

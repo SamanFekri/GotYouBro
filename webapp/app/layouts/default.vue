@@ -31,6 +31,7 @@ const tabs = [
     </div>
 
     <div v-else class="page gate">
+      <img src="/logo.png" alt="GotYouBro" class="gate-logo" width="120" height="120" />
       <div v-if="auth.status === 'idle' || auth.status === 'loading'" class="spinner" />
       <EmptyState v-else-if="auth.status === 'no-telegram'" emoji="✈️" title="Open GotYouBro from Telegram" text="This Web App signs you in with your Telegram account. Open it from the bot's menu button or send /start to the bot." />
       <EmptyState v-else-if="auth.status === 'blocked'" emoji="⛔️" title="Account blocked" :text="auth.error" />
@@ -49,6 +50,9 @@ const tabs = [
 .gate {
   min-height: 80vh;
   justify-content: center;
+}
+.gate-logo {
+  align-self: center;
 }
 .tabbar {
   position: fixed;

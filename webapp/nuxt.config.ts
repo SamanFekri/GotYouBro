@@ -13,7 +13,10 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover' },
         { name: 'color-scheme', content: 'light dark' },
       ],
-      link: [{ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
+      link: [
+        { rel: 'icon', href: '/favicon.png', type: 'image/png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      ],
       // Must load before the app so window.Telegram.WebApp is available on start.
       script: [{ src: 'https://telegram.org/js/telegram-web-app.js', tagPosition: 'head' }],
     },

@@ -1,6 +1,10 @@
-# GotYouBro
+<p align="center">
+  <img src="docs/logo.png" alt="GotYouBro logo" width="180" />
+</p>
 
-**Telegram backup delivery and heartbeat health monitoring for your apps.**
+<h1 align="center">GotYouBro</h1>
+
+<p align="center"><b>Telegram backup delivery and heartbeat health monitoring for your apps.</b></p>
 
 Your applications send backups and heartbeats to one small HTTP API. GotYouBro delivers each backup file to a Telegram chat, group, forum topic or channel that you choose. If an app stops sending heartbeats, you get one Telegram alert, and another when it comes back.
 
