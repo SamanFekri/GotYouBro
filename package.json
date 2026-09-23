@@ -1,0 +1,23 @@
+{
+  "name": "gotyoubro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram backup delivery and heartbeat health monitoring",
+  "license": "MIT",
+  "workspaces": [
+    "server",
+    "webapp"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w server",
+    "dev:webapp": "npm run dev -w webapp",
+    "build": "npm run build -w webapp && npm run build -w server",
+    "start": "npm run start -w server",
+    "test": "npm test -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w webapp",
+    "db:generate": "npm run db:generate -w server"
+  },
+  "engines": {
+    "node": ">=22.9"
+  }
+}

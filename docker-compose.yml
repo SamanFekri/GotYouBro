@@ -1,0 +1,39 @@
+services:
+  gotyoubro:
+    build: .
+    image: gotyoubro:latest
+    container_name: gotyoubro
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/app/data/gotyoubro.db
+    ports:
+      # Only reachable from this host: nginx/Caddy in front terminates HTTPS. Binding to localhost
+      # also keeps clients from bypassing the proxy and spoofing X-Forwarded-For (TRUST_PROXY=true).
+      - "127.0.0.1:${PORT:-6969}:${PORT:-6969}"
+    volumes:
+      # SQLite database (and temporary uploads) persist here.
+      - ./data:/app/data
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: local Telegram Bot API server. Raises Telegram's upload limit from 50 MB to 2000 MB,
+  # which is required for backups larger than 50 MB (e.g. the 1.5 GB default).
+  # Enable with: docker compose --profile local-bot-api up -d
+  # and set TELEGRAM_API_ROOT=http://telegram-bot-api:8081 in .env.
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    container_name: gotyoubro-telegram-bot-api
+    profiles: ["local-bot-api"]
+    restart: unless-stopped
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+      TELEGRAM_LOCAL: "1"
+    volumes:
+      - ./telegram-bot-api-data:/var/lib/telegram-bot-api
