@@ -44,8 +44,8 @@ COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/server/drizzle ./server/drizzle
 COPY --from=build /app/webapp/.output/public ./webapp/public
 
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p /app/data && chown -R node:node /app/data
-USER node
 VOLUME ["/app/data"]
 EXPOSE 6969
 
@@ -53,4 +53,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||6969)+'/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 WORKDIR /app/server
+# The entrypoint fixes /app/data ownership, then runs the app as the non-root `node` user.
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/index.js"]

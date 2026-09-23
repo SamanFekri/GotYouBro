@@ -296,7 +296,7 @@ docker compose up -d --build
 docker compose logs -f
 ```
 
-The SQLite database is saved in `./data` (mounted at `/app/data`). The container runs as the non-root `node` user (uid 1000). If `./data` is owned by root, run `sudo chown -R 1000:1000 data` once.
+The SQLite database is saved in `./data` (mounted at `/app/data`). The app runs as the non-root `node` user (uid 1000). On start, the container makes `./data` writable for that user, so a root-owned folder is fine.
 
 The container includes a health check on `/ready`. To upgrade: `git pull && docker compose up -d --build`. Database migrations run automatically on startup.
 

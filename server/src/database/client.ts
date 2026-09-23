@@ -12,7 +12,19 @@ const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 
 export function openDatabase(file: string): Db {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
-  const sqlite = new Database(file);
+  let sqlite: Database.Database;
+  try {
+    sqlite = new Database(file);
+  } catch (err) {
+    if ((err as { code?: string }).code === 'SQLITE_CANTOPEN') {
+      throw new Error(
+        `Cannot open SQLite database at ${file}. Make sure the directory exists and is writable by ` +
+          `this process (uid ${process.getuid?.() ?? '?'}). With Docker: sudo chown -R 1000:1000 ./data`,
+        { cause: err },
+      );
+    }
+    throw err;
+  }
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('synchronous = NORMAL');
   sqlite.pragma('foreign_keys = ON');
