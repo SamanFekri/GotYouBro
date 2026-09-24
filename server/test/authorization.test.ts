@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ADMIN_TELEGRAM_ID, bearer, createHarness, createService, createUser, multipart, sessionHeaders, type TestHarness } from './helpers.js';
+import { ADMIN_TELEGRAM_ID, bearer, createHarness, createService, createUser, createVerifiedDestination, multipart, sessionHeaders, type TestHarness } from './helpers.js';
 
 let h: TestHarness;
 beforeEach(async () => {
@@ -105,6 +105,44 @@ describe('user data isolation', () => {
     });
     expect(ok.statusCode).toBe(201);
     expect(ok.json().data).toMatchObject({ type: 'GROUP', verified: true });
+  });
+});
+
+describe('destination chat ids', () => {
+  it('follows a group that was upgraded to a supergroup', async () => {
+    const user = createUser(h);
+    h.telegram.migrated.set(-4340248637, -1002222333444);
+    h.telegram.chats.set(-1002222333444, { id: -1002222333444, type: 'supergroup', title: 'Ops', isForum: false });
+    h.telegram.members.set(`-1002222333444:${user.telegramId}`, { status: 'creator' });
+
+    const res = await h.app.inject({
+      method: 'POST',
+      url: '/api/v1/app/destinations',
+      headers: sessionHeaders(h, user),
+      payload: { name: 'Ops', chatId: -4340248637 },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().data).toMatchObject({ telegramChatId: -1002222333444, verified: true });
+  });
+
+  it('updates existing destinations when re-verifying an upgraded group', async () => {
+    const user = createUser(h);
+    const dest = createVerifiedDestination(h, user, -555);
+    h.telegram.migrated.set(-555, -100555);
+    const res = await h.app.inject({ method: 'POST', url: `/api/v1/app/destinations/${dest.id}/verify`, headers: sessionHeaders(h, user) });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data).toMatchObject({ telegramChatId: -100555, verified: true });
+  });
+
+  it('explains "chat not found" and suggests /connect', async () => {
+    const res = await h.app.inject({
+      method: 'POST',
+      url: '/api/v1/app/destinations',
+      headers: sessionHeaders(h, createUser(h)),
+      payload: { name: 'x', chatId: -999 },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.message).toMatch(/\/connect/);
   });
 });
 

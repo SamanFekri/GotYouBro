@@ -15,15 +15,21 @@ export class TelegramBackupDestination implements BackupDestinationProvider {
   ) {}
 
   async deliver(destination: Destination, file: BackupFile, metadata: BackupMetadata) {
+    let chatId = destination.telegramChatId;
     for (let attempt = 1; ; attempt++) {
       try {
         const { messageId } = await this.telegram.sendDocument(
-          destination.telegramChatId,
+          chatId,
           { path: file.path, filename: file.filename },
           { threadId: destination.telegramThreadId, caption: backupCaption(file, metadata), html: true },
         );
         return { externalId: String(messageId) };
       } catch (err) {
+        // The group was upgraded to a supergroup: send to its new id (the bot updates the record).
+        if (err instanceof TelegramApiError && err.migrateToChatId && chatId !== err.migrateToChatId) {
+          chatId = err.migrateToChatId;
+          continue;
+        }
         const retryable = err instanceof TelegramApiError && err.retryable;
         if (!retryable || attempt >= MAX_ATTEMPTS) throw err;
         const waitMs = err.retryAfterSeconds ? err.retryAfterSeconds * 1000 : this.retryDelayMs * attempt;

@@ -85,11 +85,15 @@ export class DestinationsService {
     }
 
     const chat = await this.inspectChat(input.chatId);
+    if (chat.id !== input.chatId && this.findByChat(user.id, chat.id, threadId)) {
+      throw new AppError('CONFLICT', 'This destination already exists');
+    }
     const type = resolveType(chat, threadId);
     await this.assertUserControlsChat(chat, user.telegramId);
     await this.assertBotCanPost(chat);
 
-    const dest = this.insert(user.id, { ...input, threadId }, type, false);
+    // chat.id may differ from input.chatId if the group was upgraded to a supergroup.
+    const dest = this.insert(user.id, { ...input, chatId: chat.id, threadId }, type, false);
     return this.verify(user, dest);
   }
 
@@ -107,12 +111,20 @@ export class DestinationsService {
 
   /** Verify by actually sending a message. Updates the `verified` flag either way. */
   async verify(user: User, dest: Destination): Promise<Destination> {
+    const send = (chatId: number) =>
+      this.telegram.sendMessage(chatId, `✅ GotYouBro destination "${dest.name}" is connected. Backups will be delivered here.`, {
+        threadId: dest.telegramThreadId,
+      });
     try {
-      await this.telegram.sendMessage(
-        dest.telegramChatId,
-        `✅ GotYouBro destination "${dest.name}" is connected. Backups will be delivered here.`,
-        { threadId: dest.telegramThreadId },
-      );
+      try {
+        await send(dest.telegramChatId);
+      } catch (err) {
+        // The group was upgraded to a supergroup: switch to its new id and try again.
+        if (!(err instanceof TelegramApiError) || !err.migrateToChatId) throw err;
+        this.migrateChat(dest.telegramChatId, err.migrateToChatId);
+        dest = { ...dest, telegramChatId: err.migrateToChatId };
+        await send(dest.telegramChatId);
+      }
     } catch (err) {
       this.setVerified(dest.id, false);
       throwIfUnreachable(err);
@@ -171,11 +183,29 @@ export class DestinationsService {
       return await this.telegram.getChat(chatId);
     } catch (err) {
       throwIfUnreachable(err);
-      throw new AppError(
-        'DESTINATION_VERIFICATION_FAILED',
-        `The bot cannot access chat ${chatId}. Add the bot to the group/channel first. (${(err as Error).message})`,
-      );
+      // Basic groups get a new id when upgraded to a supergroup (e.g. after enabling Topics).
+      if (err instanceof TelegramApiError && err.migrateToChatId) return this.inspectChat(err.migrateToChatId);
+      if (err instanceof TelegramApiError && err.chatNotFound) {
+        throw new AppError(
+          'DESTINATION_VERIFICATION_FAILED',
+          `Telegram says chat ${chatId} was not found for this bot. Either the bot is not a member, or the chat ID is wrong ` +
+            `(groups get a new "-100…" ID when they are upgraded, e.g. after enabling Topics). ` +
+            `Easiest fix: send /connect inside the group and GotYouBro will detect the right ID.`,
+        );
+      }
+      throw new AppError('DESTINATION_VERIFICATION_FAILED', `The bot cannot access chat ${chatId}: ${(err as Error).message}`);
     }
+  }
+
+  /** Point every destination of an upgraded group at the supergroup's new id. */
+  migrateChat(oldChatId: number, newChatId: number): number {
+    const changed = this.db
+      .update(destinations)
+      .set({ telegramChatId: newChatId })
+      .where(eq(destinations.telegramChatId, oldChatId))
+      .run().changes;
+    if (changed) this.logger.info({ oldChatId, newChatId, changed }, 'Group upgraded to supergroup; destinations updated');
+    return changed;
   }
 
   private async assertUserControlsChat(chat: TelegramChatInfo, telegramUserId: number): Promise<void> {

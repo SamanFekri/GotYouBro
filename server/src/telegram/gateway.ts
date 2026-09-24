@@ -30,6 +30,8 @@ export class TelegramApiError extends Error {
     readonly retryAfterSeconds?: number,
     /** True when the Bot API server could not be reached at all (DNS, refused, timeout). */
     readonly unreachable = false,
+    /** Set when a basic group was upgraded to a supergroup: the chat now has this new id. */
+    readonly migrateToChatId?: number,
   ) {
     super(message);
     this.name = 'TelegramApiError';
@@ -37,6 +39,10 @@ export class TelegramApiError extends Error {
 
   get retryable(): boolean {
     return this.status === undefined || this.status === 429 || this.status >= 500;
+  }
+
+  get chatNotFound(): boolean {
+    return /chat not found/i.test(this.message);
   }
 }
 
@@ -131,7 +137,7 @@ async function wrap<T>(fn: () => Promise<T>, apiRoot: string): Promise<T> {
     return await fn();
   } catch (err) {
     if (err instanceof TelegramError) {
-      throw new TelegramApiError(err.description, err.code, err.parameters?.retry_after);
+      throw new TelegramApiError(err.description, err.code, err.parameters?.retry_after, false, err.parameters?.migrate_to_chat_id);
     }
     // Network-level failure. The raw message contains the request URL (with the bot id), so
     // only keep the reason, e.g. "getaddrinfo ENOTFOUND telegram-bot-api".

@@ -20,10 +20,18 @@ export class FakeTelegram implements TelegramGateway {
   documents: Array<{ chatId: number; filename: string; caption?: string; threadId?: number | null; content: Buffer }> = [];
   failDocumentsWith: TelegramApiError | undefined;
   chats = new Map<number, TelegramChatInfo>();
+  /** old basic-group id → new supergroup id */
+  migrated = new Map<number, number>();
+
+  private checkMigrated(chatId: number) {
+    const to = this.migrated.get(chatId);
+    if (to) throw new TelegramApiError('Bad Request: group chat was upgraded to a supergroup chat', 400, undefined, false, to);
+  }
   members = new Map<string, ChatMemberInfo>();
   private nextId = 1;
 
   async sendMessage(chatId: number, text: string, opts: { threadId?: number | null } = {}) {
+    this.checkMigrated(chatId);
     this.messages.push({ chatId, text, threadId: opts.threadId });
     return { messageId: this.nextId++ };
   }
@@ -36,6 +44,7 @@ export class FakeTelegram implements TelegramGateway {
   }
 
   async getChat(chatId: number) {
+    this.checkMigrated(chatId);
     const chat = this.chats.get(chatId);
     if (!chat) throw new TelegramApiError('Bad Request: chat not found', 400);
     return chat;

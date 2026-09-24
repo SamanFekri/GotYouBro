@@ -37,6 +37,16 @@ export function registerBot(bot: Telegraf, app: AppContext): void {
     app.logger.error({ err, updateType: ctx.updateType }, 'Bot handler failed');
   });
 
+  // Telegram gives a group a new id when it becomes a supergroup (e.g. Topics enabled).
+  bot.use(async (ctx, next) => {
+    const msg = ctx.message;
+    if (msg && 'migrate_to_chat_id' in msg && msg.migrate_to_chat_id) {
+      app.destinations.migrateChat(msg.chat.id, msg.migrate_to_chat_id);
+      return;
+    }
+    return next();
+  });
+
   // Blocked users get a single notice and nothing else.
   bot.use(async (ctx, next) => {
     const user = registeredUser(ctx);
