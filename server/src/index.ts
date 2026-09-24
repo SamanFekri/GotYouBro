@@ -27,10 +27,23 @@ async function main() {
       telegram: config.telegram.apiRoot ? { apiRoot: config.telegram.apiRoot } : {},
       handlerTimeout: 60_000,
     });
-    telegram = new TelegrafGateway(bot.telegram);
+    telegram = new TelegrafGateway(bot.telegram, config.telegram.apiRoot);
   } else {
     logger.warn('TELEGRAM_BOT_TOKEN is not set: bot, deliveries and notifications are disabled');
     telegram = new DisabledGateway();
+  }
+
+  // Fail loudly (but keep serving the API) if Telegram can't be reached with this configuration.
+  if (config.telegram.botToken) {
+    try {
+      await telegram.getBotId();
+      logger.info({ apiRoot: config.telegram.apiRoot ?? 'https://api.telegram.org' }, 'Connected to the Telegram Bot API');
+    } catch (err) {
+      const hint = config.telegram.apiRoot
+        ? 'TELEGRAM_API_ROOT points to a local Bot API server: make sure it is running (docker compose --profile local-bot-api up -d) with TELEGRAM_API_ID/TELEGRAM_API_HASH set, or clear TELEGRAM_API_ROOT to use the official API.'
+        : 'Check TELEGRAM_BOT_TOKEN and outbound internet access.';
+      logger.error({ err: (err as Error).message }, `Cannot use the Telegram Bot API. ${hint}`);
+    }
   }
 
   const ctx = createContext({ config, db, logger, telegram });

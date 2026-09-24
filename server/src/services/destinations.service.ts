@@ -115,6 +115,7 @@ export class DestinationsService {
       );
     } catch (err) {
       this.setVerified(dest.id, false);
+      throwIfUnreachable(err);
       const reason = err instanceof TelegramApiError ? err.message : 'unknown error';
       this.logger.info({ destinationId: dest.id, userId: user.id, reason }, 'Destination verification failed');
       throw new AppError('DESTINATION_VERIFICATION_FAILED', `The bot could not send a message to this destination: ${reason}`);
@@ -169,6 +170,7 @@ export class DestinationsService {
     try {
       return await this.telegram.getChat(chatId);
     } catch (err) {
+      throwIfUnreachable(err);
       throw new AppError(
         'DESTINATION_VERIFICATION_FAILED',
         `The bot cannot access chat ${chatId}. Add the bot to the group/channel first. (${(err as Error).message})`,
@@ -190,11 +192,21 @@ export class DestinationsService {
 
   private async assertBotCanPost(chat: TelegramChatInfo): Promise<void> {
     if (chat.type !== 'channel') return;
-    const botId = await this.telegram.getBotId();
+    const botId = await this.telegram.getBotId().catch((err) => {
+      throwIfUnreachable(err);
+      throw err;
+    });
     const member = await this.telegram.getChatMember(chat.id, botId).catch(() => undefined);
     if (!member || !ADMIN_STATUSES.has(member.status) || !member.canPostMessages) {
       throw new AppError('DESTINATION_VERIFICATION_FAILED', 'The bot must be a channel administrator with permission to post messages');
     }
+  }
+}
+
+/** A server-side connectivity problem is not the user's fault: report it as such. */
+function throwIfUnreachable(err: unknown): void {
+  if (err instanceof TelegramApiError && err.unreachable) {
+    throw new AppError('TELEGRAM_UNAVAILABLE', `${err.message}. This is a server configuration problem, not a problem with your chat.`);
   }
 }
 

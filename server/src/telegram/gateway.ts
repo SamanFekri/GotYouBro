@@ -28,6 +28,8 @@ export class TelegramApiError extends Error {
     message: string,
     readonly status?: number,
     readonly retryAfterSeconds?: number,
+    /** True when the Bot API server could not be reached at all (DNS, refused, timeout). */
+    readonly unreachable = false,
   ) {
     super(message);
     this.name = 'TelegramApiError';
@@ -56,15 +58,21 @@ export interface TelegramGateway {
 
 export class TelegrafGateway implements TelegramGateway {
   private botId: number | undefined;
+  private readonly wrap: <T>(fn: () => Promise<T>) => Promise<T>;
 
-  constructor(readonly telegram: Telegram) {}
+  constructor(
+    readonly telegram: Telegram,
+    apiRoot = 'https://api.telegram.org',
+  ) {
+    this.wrap = (fn) => wrap(fn, apiRoot);
+  }
 
   static create(token: string, apiRoot?: string): TelegrafGateway {
-    return new TelegrafGateway(new Telegram(token, apiRoot ? { apiRoot } : {}));
+    return new TelegrafGateway(new Telegram(token, apiRoot ? { apiRoot } : {}), apiRoot);
   }
 
   async sendMessage(chatId: number, text: string, opts: SendOptions = {}) {
-    return wrap(async () => {
+    return this.wrap(async () => {
       const msg = await this.telegram.sendMessage(chatId, text, {
         ...(opts.threadId ? { message_thread_id: opts.threadId } : {}),
         ...(opts.html ? { parse_mode: 'HTML' as const } : {}),
@@ -75,7 +83,7 @@ export class TelegrafGateway implements TelegramGateway {
   }
 
   async sendDocument(chatId: number, file: { path: string; filename: string }, opts: SendOptions & { caption?: string } = {}) {
-    return wrap(async () => {
+    return this.wrap(async () => {
       const msg = await this.telegram.sendDocument(
         chatId,
         { source: fs.createReadStream(file.path), filename: file.filename },
@@ -91,7 +99,7 @@ export class TelegrafGateway implements TelegramGateway {
   }
 
   async getChat(chatId: number): Promise<TelegramChatInfo> {
-    return wrap(async () => {
+    return this.wrap(async () => {
       const chat = await this.telegram.getChat(chatId);
       return {
         id: chat.id,
@@ -103,7 +111,7 @@ export class TelegrafGateway implements TelegramGateway {
   }
 
   async getChatMember(chatId: number, userId: number): Promise<ChatMemberInfo> {
-    return wrap(async () => {
+    return this.wrap(async () => {
       const member = await this.telegram.getChatMember(chatId, userId);
       return {
         status: member.status,
@@ -113,19 +121,23 @@ export class TelegrafGateway implements TelegramGateway {
   }
 
   async getBotId(): Promise<number> {
-    if (this.botId === undefined) this.botId = (await wrap(() => this.telegram.getMe())).id;
+    if (this.botId === undefined) this.botId = (await this.wrap(() => this.telegram.getMe())).id;
     return this.botId;
   }
 }
 
-async function wrap<T>(fn: () => Promise<T>): Promise<T> {
+async function wrap<T>(fn: () => Promise<T>, apiRoot: string): Promise<T> {
   try {
     return await fn();
   } catch (err) {
     if (err instanceof TelegramError) {
       throw new TelegramApiError(err.description, err.code, err.parameters?.retry_after);
     }
-    throw new TelegramApiError(err instanceof Error ? err.message : String(err));
+    // Network-level failure. The raw message contains the request URL (with the bot id), so
+    // only keep the reason, e.g. "getaddrinfo ENOTFOUND telegram-bot-api".
+    const raw = err instanceof Error ? err.message : String(err);
+    const reason = /reason: (.*)$/.exec(raw)?.[1] ?? (err as { code?: string }).code ?? 'network error';
+    throw new TelegramApiError(`Cannot reach the Telegram Bot API at ${apiRoot} (${reason})`, undefined, undefined, true);
   }
 }
 
