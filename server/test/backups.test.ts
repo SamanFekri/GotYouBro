@@ -154,6 +154,23 @@ describe('backup upload', () => {
     expect(h.telegram.documents).toHaveLength(2);
   });
 
+  it('allows retrying a failed backup with the same Idempotency-Key', async () => {
+    const { token } = createService(h, createUser(h));
+    h.telegram.failDocumentsWith = new TelegramApiError('Bad Request: chat not found', 400);
+    const failed = await upload(token, 'db.part001', 'x', '?wait=true', { 'idempotency-key': 'db.part001' });
+    expect(failed.statusCode).toBe(502);
+
+    h.telegram.failDocumentsWith = undefined;
+    const retried = await upload(token, 'db.part001', 'x', '?wait=true', { 'idempotency-key': 'db.part001' });
+    expect(retried.statusCode).toBe(200);
+    expect(retried.json().data.status).toBe('SUCCESS');
+    expect(retried.json().data.id).not.toBe(failed.json().error.details.backup.id);
+
+    const replay = await upload(token, 'db.part001', 'x', '?wait=true', { 'idempotency-key': 'db.part001' });
+    expect(replay.json().data).toMatchObject({ id: retried.json().data.id, idempotent: true });
+    expect(h.telegram.documents).toHaveLength(1);
+  });
+
   it('scopes idempotency keys per service', async () => {
     const user = createUser(h);
     const a = createService(h, user, { name: 'A' });

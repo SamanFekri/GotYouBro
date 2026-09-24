@@ -67,6 +67,11 @@ export class BackupsService {
       .get();
   }
 
+  /** Detach the key from a failed backup so a retry with the same key creates a new attempt. */
+  releaseIdempotencyKey(backupId: string): void {
+    this.db.update(backups).set({ idempotencyKey: null }).where(eq(backups.id, backupId)).run();
+  }
+
   /** Insert the RECEIVED record. Concurrent duplicates with the same Idempotency-Key resolve to one row. */
   createRecord(input: NewBackup): { backup: Backup; duplicate: boolean } {
     try {

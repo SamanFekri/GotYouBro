@@ -87,7 +87,9 @@ async function handleUpload(
   const idempotencyKey = readIdempotencyKey(request);
   if (idempotencyKey) {
     const existing = ctx.backups.findByIdempotencyKey(service.id, idempotencyKey);
-    if (existing) return respondWithBackup(reply, existing, { idempotent: true });
+    // A failed attempt doesn't consume the key, so clients can simply retry with the same key.
+    if (existing && existing.status === 'FAILED') ctx.backups.releaseIdempotencyKey(existing.id);
+    else if (existing) return respondWithBackup(reply, existing, { idempotent: true });
   }
 
   const destination = ctx.backups.resolveDestination(service);

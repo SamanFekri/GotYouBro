@@ -27,6 +27,18 @@ describe('health monitoring', () => {
     expect(h.ctx.services.get(service.id).lastHeartbeatAt).not.toBeNull();
   });
 
+  it('accepts heartbeats with any (ignored) body', async () => {
+    const { token } = monitored();
+    for (const [type, payload] of [
+      ['application/x-www-form-urlencoded', ''],
+      ['application/json', '{"status":"ok"}'],
+      ['text/plain', 'ping'],
+    ]) {
+      const res = await h.app.inject({ method: 'POST', url: '/api/v1/health/heartbeat', headers: { ...bearer(token), 'content-type': type! }, payload });
+      expect(res.statusCode, type).toBe(200);
+    }
+  });
+
   it('stays healthy while heartbeats arrive within interval + grace', async () => {
     const { service, token } = monitored();
     await beat(token);

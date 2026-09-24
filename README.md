@@ -141,11 +141,25 @@ Request → Authentication → Rate limit → Validate service & destination →
 
 - By default the API replies **`202 Accepted`** straight away with a backup `id`. Check the result with `GET /api/v1/backups/{id}`.
 - Add **`?wait=true`** to wait for delivery. You then get `200` when the file is delivered, or `502 TELEGRAM_DELIVERY_FAILED` if Telegram rejected it.
-- Send an **`Idempotency-Key`** header so retries never create duplicates. Repeating a request with the same key (per service) returns the original backup, marked `"idempotent": true`.
+- Send an **`Idempotency-Key`** header so retries never create duplicates. Repeating a request with the same key (per service) returns the original backup, marked `"idempotent": true`. If that backup **failed**, the key is released and the retry is uploaded again.
 - Files are stored only temporarily, on the server's disk, while they are delivered. They are deleted afterwards, whether delivery succeeds or fails.
 - If a backup fails, the service owner gets a Telegram message (this can be turned off in **Settings**).
 
-More examples are in [`examples/`](examples/), including a cron-ready [SQLite backup script](examples/backup-sqlite.sh).
+### Ready-made backup clients
+
+[`examples/`](examples/) has backup clients in **Node.js**, **Python** and **Go**. They use only the standard library and work with **SQLite, MySQL, PostgreSQL and MongoDB**, or any file. Each one:
+
+1. dumps the database with its own tool (`sqlite3`, `mysqldump`, `pg_dump`, `mongodump`);
+2. compresses the dump with gzip;
+3. **splits it into parts** that fit the server's upload limit, plus a checksum manifest;
+4. uploads each part, retrying safely.
+
+The matching restore scripts rejoin and verify the parts. See [`examples/README.md`](examples/README.md).
+
+```bash
+node examples/node/backup.mjs postgres postgres://app:secret@localhost:5432/app
+python3 examples/python/restore.py ~/Downloads/backup --extract
+```
 
 ## 5. Send heartbeats
 
@@ -190,6 +204,8 @@ How monitoring works:
 - The next heartbeat marks it **HEALTHY** again and sends **one** recovery message, including how long the outage lasted.
 - Heartbeats are **not stored**. Each one only updates the current state on the service. The database records one row per outage, so it grows with incidents, not with how often you send heartbeats.
 - The Web App shows current state, last heartbeat, total downtime, outage count and outage history.
+
+Heartbeat clients for **Node.js**, **Python** and **Go** are in [`examples/`](examples/README.md#heartbeats). They include a `--once` mode for cron jobs.
 
 ## API reference
 

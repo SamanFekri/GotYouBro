@@ -210,7 +210,7 @@ export function buildOpenApiDocument(serverUrl?: string) {
           name: 'Idempotency-Key',
           in: 'header',
           schema: { type: 'string', maxLength: 128 },
-          description: 'Retrying with the same key returns the original backup instead of uploading a duplicate. Scoped to the service.',
+          description: 'Retrying with the same key returns the original backup instead of uploading a duplicate; if that backup failed, the retry is uploaded again. Scoped to the service.',
         },
       },
       schemas: {
