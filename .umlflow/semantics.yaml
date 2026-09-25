@@ -36,5 +36,11 @@ actors:
     source: semantic-inference
   External system:
     source: semantic-inference
-operations: {}
+operations:
+  routes@server/src/api/v1/backups.handleUpload:
+    flow: Receive backup and queue Telegram delivery
+    source: semantic-inference
+  routes@server/src/api/v1/backups.respondWithBackup:
+    flow: Return backup status to client
+    source: semantic-inference
 entities: {}
