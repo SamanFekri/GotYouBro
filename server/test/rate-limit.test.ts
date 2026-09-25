@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseRateLimit, RateLimiter } from '../src/rate-limit/rate-limit.js';
-import { bearer, createHarness, createService, createUser, multipart, sessionHeaders, type TestHarness } from './helpers.js';
+import { ADMIN_TELEGRAM_ID, bearer, createHarness, createService, createUser, multipart, sessionHeaders, type TestHarness } from './helpers.js';
 
 describe('parseRateLimit', () => {
   it('parses common formats', () => {
@@ -127,5 +127,20 @@ describe('effective max backup size', () => {
     const local = await createHarness({ MAX_BACKUP_SIZE_MB: '1024', TELEGRAM_API_ROOT: 'http://telegram-bot-api:8081' });
     expect(local.ctx.limits.forUser(createUser(local)).maxBackupBytes).toBe(1024 * 1024 * 1024);
     await local.close();
+  });
+});
+
+describe('administrators', () => {
+  it('have no service limit and no service-creation rate limit', async () => {
+    const h = await createHarness({ MAX_SERVICES_PER_USER: '1', DEFAULT_SERVICE_CREATE_RATE_LIMIT: '1/hour' });
+    const admin = createUser(h, ADMIN_TELEGRAM_ID);
+    const headers = sessionHeaders(h, admin);
+    for (let i = 0; i < 5; i++) {
+      const res = await h.app.inject({ method: 'POST', url: '/api/v1/app/services', headers, payload: { name: `svc ${i}` } });
+      expect(res.statusCode).toBe(201);
+    }
+    const me = await h.app.inject({ method: 'GET', url: '/api/v1/app/me', headers });
+    expect(me.json().data.limits.maxServices).toBeNull();
+    await h.close();
   });
 });

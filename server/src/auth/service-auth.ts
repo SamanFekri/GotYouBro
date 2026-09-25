@@ -31,7 +31,8 @@ export function serviceAuth(ctx: AppContext, category: LimitCategory): preHandle
     request.serviceAuth = auth;
     request.log = request.log.child({ serviceId: auth.service.id, tokenPrefix: auth.credential.tokenPrefix });
 
-    const result = ctx.limiter.consume(ctx.limits.serviceApiChecks(auth.user, auth.service, category));
+    const monitorKey = (request.params as { monitor?: string } | undefined)?.monitor;
+    const result = ctx.limiter.consume(ctx.limits.serviceApiChecks(auth.user, auth.service, category, monitorKey));
     enforceRateLimit(reply, result, category === 'backup' ? 'Backup rate limit exceeded' : 'Too many requests');
   };
 }

@@ -2,6 +2,7 @@
 //
 //	GOTYOUBRO_URL=https://gotyoubro.example.com GOTYOUBRO_TOKEN=gyb_... go run ./heartbeat
 //	go run ./heartbeat -once          # single heartbeat, e.g. at the end of a cron job
+//	GOTYOUBRO_MONITOR=worker go run ./heartbeat   # heartbeat for the "worker" monitor
 //
 // To use it inside your app, copy SendHeartbeat/StartHeartbeat and call
 // StartHeartbeat(ctx, 30*time.Second) once at startup.
@@ -38,7 +39,11 @@ var client = &http.Client{Timeout: 10 * time.Second}
 
 // SendHeartbeat sends one heartbeat and returns the service's health state.
 func SendHeartbeat(ctx context.Context, baseURL, token string) (*heartbeatResult, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/health/heartbeat", nil)
+	url := baseURL + "/api/v1/health/heartbeat"
+	if monitor := os.Getenv("GOTYOUBRO_MONITOR"); monitor != "" { // optional monitor key
+		url += "/" + monitor
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
 		return nil, err
 	}

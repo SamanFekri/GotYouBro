@@ -8,6 +8,20 @@
       "when": 1790182977921,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790347604333,
+      "tag": "0001_health_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790347755942,
+      "tag": "0002_monitors",
+      "breakpoints": true
     }
   ]
 }

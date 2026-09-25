@@ -19,6 +19,11 @@ export interface UserLimitOverrides {
   backupRateLimit?: string | null;
 }
 
+/** Admin status is decided server-side: the root admin from ADMIN_TELEGRAM_ID, or an ADMIN role. */
+export function isAdminUser(user: Pick<User, 'role' | 'telegramId'>, config: Pick<AppConfig, 'adminTelegramId'>): boolean {
+  return user.role === 'ADMIN' || (config.adminTelegramId !== undefined && user.telegramId === config.adminTelegramId);
+}
+
 export class UsersService {
   constructor(
     private readonly db: Db,
@@ -27,7 +32,7 @@ export class UsersService {
 
   /** Admin status is always decided server-side: env root admin or an ADMIN role granted by the root admin. */
   isAdmin(user: Pick<User, 'role' | 'telegramId'>): boolean {
-    return user.role === 'ADMIN' || this.isRootAdmin(user);
+    return isAdminUser(user, this.config);
   }
 
   isRootAdmin(user: Pick<User, 'telegramId'>): boolean {

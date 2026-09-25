@@ -88,7 +88,7 @@ export function buildOpenApiDocument(serverUrl?: string) {
         '| Per IP | 300/minute | every `/api` request |',
         '| Per user (all services combined) | 60/minute | backups, status and info endpoints |',
         '| Per user (all services combined) | 30/hour | backup uploads |',
-        '| Per service | 10/minute | heartbeats |',
+        '| Per monitor | 10/minute | heartbeats |',
         '',
         'Limits are aggregated per user so creating more services does not increase quota. Admins can',
         'change defaults and set per-user / per-service overrides. Rate limited responses return `429`',
@@ -159,7 +159,7 @@ export function buildOpenApiDocument(serverUrl?: string) {
       '/api/v1/health/heartbeat': {
         post: {
           tags: ['Health'],
-          summary: 'Send a heartbeat',
+          summary: "Send a heartbeat (the service's default or only monitor)",
           description:
             'Updates the service\'s current health state. Heartbeats are not stored individually. If no heartbeat arrives within `interval + grace` seconds the service is marked DOWN and the owner is alerted once; the next heartbeat marks it HEALTHY and sends one recovery message.\n\n```bash\ncurl -X POST https://example.com/api/v1/health/heartbeat -H "Authorization: Bearer $GOTYOUBRO_TOKEN"\n```',
           responses: {
@@ -182,6 +182,20 @@ export function buildOpenApiDocument(serverUrl?: string) {
                 },
               },
             },
+            ...commonErrors,
+          },
+        },
+      },
+      '/api/v1/health/heartbeat/{monitor}': {
+        post: {
+          tags: ['Health'],
+          summary: 'Send a heartbeat for a specific monitor',
+          description:
+            'A service can have several monitors (e.g. `api`, `worker`, `nightly-job`), each with its own interval, alerts and history. Create them in the Web App.\n\n```bash\ncurl -X POST https://example.com/api/v1/health/heartbeat/worker -H "Authorization: Bearer $GOTYOUBRO_TOKEN"\n```',
+          parameters: [{ name: 'monitor', in: 'path', required: true, schema: { type: 'string', pattern: '^[a-z0-9][a-z0-9_-]{0,39}$' }, description: 'Monitor key' }],
+          responses: {
+            '200': { description: 'Heartbeat recorded', content: { 'application/json': { schema: { $ref: '#/components/schemas/HeartbeatEnvelope' } } } },
+            '404': errorResponse('MONITOR_NOT_FOUND', 'This service has no monitor with key "worker". Create it in the Web App.', 'Unknown monitor key'),
             ...commonErrors,
           },
         },
@@ -249,6 +263,7 @@ export function buildOpenApiDocument(serverUrl?: string) {
               type: 'object',
               properties: {
                 serviceId: { type: 'string' },
+                monitor: { type: 'object', properties: { id: { type: 'string' }, key: { type: 'string' }, name: { type: 'string' } } },
                 healthStatus: { type: 'string', enum: ['UNKNOWN', 'HEALTHY', 'DOWN'] },
                 healthEnabled: { type: 'boolean' },
                 lastHeartbeatAt: { type: 'string', format: 'date-time' },

@@ -3,6 +3,7 @@
 
     GOTYOUBRO_URL=https://gotyoubro.example.com GOTYOUBRO_TOKEN=gyb_... python3 heartbeat.py
     python3 heartbeat.py --once        # single heartbeat, e.g. at the end of a cron job
+    GOTYOUBRO_MONITOR=worker python3 heartbeat.py   # heartbeat for the "worker" monitor
 
 To use it inside your app, import `start_heartbeat` and call it once at startup; it runs in a
 daemon thread and never raises.
@@ -14,17 +15,20 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 BASE_URL = os.environ.get("GOTYOUBRO_URL", "http://localhost:6969").rstrip("/")
 TOKEN = os.environ.get("GOTYOUBRO_TOKEN", "")
 INTERVAL_SECONDS = float(os.environ.get("GOTYOUBRO_INTERVAL", "30"))
+# Optional monitor key (a service can have several monitors: api, worker, nightly-job...).
+MONITOR = os.environ.get("GOTYOUBRO_MONITOR", "")
 
 
 def send_heartbeat() -> dict:
     """Send one heartbeat. Returns the response data; raises on failure."""
     request = urllib.request.Request(
-        f"{BASE_URL}/api/v1/health/heartbeat",
+        f"{BASE_URL}/api/v1/health/heartbeat" + (f"/{urllib.parse.quote(MONITOR)}" if MONITOR else ""),
         method="POST",
         headers={"Authorization": f"Bearer {TOKEN}"},
     )

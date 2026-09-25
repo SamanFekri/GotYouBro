@@ -29,6 +29,8 @@ python3 python/heartbeat.py
 cd go && go run ./heartbeat
 ```
 
+**Several monitors per service.** A service can have any number of monitors, for example `api`, `worker` and `nightly-job`, each with its own interval, alerts and 7-day history. Create them on the service page in the Web App, then set `GOTYOUBRO_MONITOR=<key>`. The client then posts to `/api/v1/health/heartbeat/<key>`. Without it, the heartbeat goes to the service's `default` monitor (or its only monitor).
+
 Add `--once` (`-once` in Go) to send a single heartbeat and exit. This suits cron jobs: when a job stops running, its heartbeats stop and GotYouBro alerts you.
 
 ```cron

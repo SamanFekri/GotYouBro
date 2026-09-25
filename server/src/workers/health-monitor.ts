@@ -23,8 +23,15 @@ export class HealthMonitor {
     this.timer = undefined;
   }
 
+  private lastPrune = 0;
+
   tick(): number {
     try {
+      // Retention runs at most once an hour; it is a single indexed DELETE.
+      if (Date.now() - this.lastPrune > 3_600_000) {
+        this.lastPrune = Date.now();
+        this.health.prune();
+      }
       return this.health.checkOverdue();
     } catch (err) {
       this.logger.error({ err }, 'Health check tick failed');

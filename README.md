@@ -77,7 +77,7 @@ A **service** is one of your apps, for example "Production API", "Discord Bot" o
 
 - **API token** (`gyb_…`), shown **once** when it's generated. It is stored only as a hash. You can **rotate** it (the old token stops working at once) or **revoke** it.
 - **Backup destination**
-- **Health monitoring** settings: on/off, heartbeat interval, grace period, and Telegram alerts on/off
+- **Health monitors**: any number, one for each part you want to watch (for example `api`, `worker`, `nightly-job`). Each has its own heartbeat URL, interval, grace period, alerts on/off and 7-day history.
 
 In the Web App: **Services → + New**. Copy the token from the dialog.
 
@@ -163,12 +163,19 @@ python3 examples/python/restore.py ~/Downloads/backup --extract
 
 ## 5. Send heartbeats
 
-Turn on **health monitoring** for the service, then call the heartbeat endpoint from your app on a regular schedule:
+Add a **monitor** to the service in the Web App: turn on "Health monitoring" when you create the service, or use **+ Add monitor** on the service page. Then call its heartbeat URL from your app on a regular schedule:
 
 ```bash
+# the service's "default" monitor (or its only monitor)
 curl -X POST https://your-domain.com/api/v1/health/heartbeat \
   -H "Authorization: Bearer $GOTYOUBRO_TOKEN"
+
+# a specific monitor of the same service, by key
+curl -X POST https://your-domain.com/api/v1/health/heartbeat/worker \
+  -H "Authorization: Bearer $GOTYOUBRO_TOKEN"
 ```
+
+One service, and one token, can watch several things independently, for example an API process, a queue worker and a nightly cron job. Each monitor goes down, alerts and recovers on its own, and the service shows the worst state among them.
 
 ```javascript
 await fetch('https://your-domain.com/api/v1/health/heartbeat', {
@@ -202,8 +209,9 @@ How monitoring works:
   ```
 
 - The next heartbeat marks it **HEALTHY** again and sends **one** recovery message, including how long the outage lasted.
-- Heartbeats are **not stored**. Each one only updates the current state on the service. The database records one row per outage, so it grows with incidents, not with how often you send heartbeats.
-- The Web App shows current state, last heartbeat, total downtime, outage count and outage history.
+- Heartbeats are **not stored**. Each one only updates the monitor's current state. The database records one row per outage (and per monitoring gap), so it grows with incidents, not with how often you send heartbeats.
+- **7-day history.** The Web App shows a chart for every monitor: up, down, or no data (monitoring off, or waiting for the first heartbeat), in 4-hour bars over the last 7 days, with uptime, outage count and downtime. History older than 7 days is deleted automatically, **except each monitor's most recent outage**, so "last time it was down" is always known.
+- **Backward compatible.** Clients that call `POST /api/v1/health/heartbeat` without a key keep working unchanged.
 
 Heartbeat clients for **Node.js**, **Python** and **Go** are in [`examples/`](examples/README.md#heartbeats). They include a `--once` mode for cron jobs.
 
@@ -216,7 +224,8 @@ Interactive OpenAPI docs are served at **`/api/docs`**. The raw spec is at `/api
 | `POST` | `/api/v1/backups`          | Upload a backup (multipart, field `file`)   |
 | `POST` | `/api/v1/backups/raw`      | Upload a backup (raw body)                  |
 | `GET`  | `/api/v1/backups/{id}`     | Backup status                               |
-| `POST` | `/api/v1/health/heartbeat` | Heartbeat                                   |
+| `POST` | `/api/v1/health/heartbeat` | Heartbeat for the default (or only) monitor |
+| `POST` | `/api/v1/health/heartbeat/{key}` | Heartbeat for a specific monitor     |
 | `GET`  | `/api/v1/service`          | Which service this token belongs to, and its limits |
 | `GET`  | `/health`                  | Liveness probe                              |
 | `GET`  | `/ready`                   | Readiness probe (checks SQLite)             |
@@ -256,11 +265,12 @@ Defaults (admins can change them at runtime):
 | --------------------------- | -------------- | ---------------------------------- |
 | API requests                | 60 / minute    | per user, all services combined    |
 | Backup uploads              | 30 / hour      | per user, all services combined    |
-| Heartbeats                  | 10 / minute    | per service                        |
+| Heartbeats                  | 10 / minute    | per monitor                        |
 | Service creation            | 10 / hour      | per user                           |
 | Any `/api` request          | 300 / minute   | per IP                             |
 | Max backup size             | 1.5 GB         | per user, overridable per service  |
-| Max services                | 10             | per user                           |
+| Max services                | 10             | per user (unlimited for admins)    |
+| Max monitors                | 10             | per service (unlimited for admins) |
 
 API and backup limits are counted **per user** across all of that user's services, so creating more services doesn't give more quota. Admins can set overrides for a single user or a single service. Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`, and a `429` response also includes `Retry-After`.
 
@@ -274,7 +284,7 @@ The user whose Telegram ID matches `ADMIN_TELEGRAM_ID` is the **root admin**. Th
 - A user list with search; per-user details: services, destinations, recent backups
 - Block and unblock users. A blocked user's tokens stop working immediately.
 - Suspend and re-enable services. Only an admin can lift a suspension.
-- Change default rate limits and sizes, and set per-user and per-service overrides
+- Change default rate limits, sizes and monitor limits, and set per-user and per-service overrides. Admins themselves have no service or monitor limit.
 - Backup activity across all users
 - An audit log of admin and security actions: blocks, limit changes, token create/rotate/revoke, service deletion
 - The root admin can promote other users to admin
@@ -416,7 +426,8 @@ Every option is documented in [`.env.example`](.env.example). The main ones:
 | `PORT`                          | `6969`                      | HTTP port                                              |
 | `TRUST_PROXY`                   | `false`                     | Trust `X-Forwarded-*` (needed for per-IP limits behind a proxy) |
 | `MAX_BACKUP_SIZE_MB`            | `1536`                      | Default max backup size (capped by `TELEGRAM_MAX_FILE_MB`) |
-| `MAX_SERVICES_PER_USER`         | `10`                        | Default max services per user                          |
+| `MAX_SERVICES_PER_USER`         | `10`                        | Default max services per user (admins: unlimited)      |
+| `MAX_MONITORS_PER_SERVICE`      | `10`                        | Default max health monitors per service (admins: unlimited) |
 | `DEFAULT_API_RATE_LIMIT`        | `60/minute`                 | Per-user API limit                                     |
 | `DEFAULT_BACKUP_RATE_LIMIT`     | `30/hour`                   | Per-user backup limit                                  |
 | `DEFAULT_HEARTBEAT_RATE_LIMIT`  | `10/minute`                 | Per-service heartbeat limit                            |

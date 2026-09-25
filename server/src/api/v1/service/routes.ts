@@ -8,14 +8,25 @@ export async function serviceInfoRoutes(app: FastifyInstance, { ctx }: { ctx: Ap
   app.get('/service', { preHandler: serviceAuth(ctx, 'api') }, async (request, reply) => {
     const { service, user, credential } = authenticatedService(request);
     const limits = ctx.limits.forUser(user, service);
+    const view = ctx.services.view(service);
     return ok(reply, {
       id: service.id,
       name: service.name,
       status: service.status,
-      healthEnabled: service.healthEnabled,
-      healthStatus: service.healthStatus,
-      healthIntervalSeconds: service.healthIntervalSeconds,
-      healthGraceSeconds: service.healthGraceSeconds,
+      // Backward compatible fields (from the default monitor), plus the full monitor list.
+      healthEnabled: view.healthEnabled,
+      healthStatus: view.healthStatus,
+      healthIntervalSeconds: view.healthIntervalSeconds,
+      healthGraceSeconds: view.healthGraceSeconds,
+      monitors: ctx.monitors.listForService(service.id).map((m) => ({
+        key: m.key,
+        name: m.name,
+        enabled: m.enabled,
+        status: m.status,
+        intervalSeconds: m.intervalSeconds,
+        graceSeconds: m.graceSeconds,
+        heartbeatUrl: `/api/v1/health/heartbeat/${m.key}`,
+      })),
       destinationConfigured: !!service.destinationId,
       token: { prefix: credential.tokenPrefix, createdAt: credential.createdAt },
       limits: {

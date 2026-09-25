@@ -6,23 +6,57 @@ import type { AppContext } from '../../../context.js';
 import { BACKUP_STATUSES, type User } from '../../../database/schema.js';
 import { AppError } from '../../../lib/errors.js';
 import { idParam, ok, pagination, parse } from '../../../lib/http.js';
+import { HISTORY_DAYS } from '../../../services/health.service.js';
+import { MONITOR_KEY_PATTERN } from '../../../services/monitors.service.js';
+import { toMonitorView, type ServiceView } from '../../../services/services.service.js';
 
 const name = z.string().trim().min(1).max(80);
 const description = z.string().trim().max(500).nullable();
 const telegramId = z.coerce.number().int().refine((n) => n !== 0 && Math.abs(n) <= Number.MAX_SAFE_INTEGER, 'Invalid Telegram id');
 
+const intervalSeconds = z.number().int().min(10).max(7 * 86400);
+const graceSeconds = z.number().int().min(0).max(86400);
 const serviceFields = {
   description: description.optional(),
   destinationId: z.string().max(64).nullable().optional(),
   apiEnabled: z.boolean().optional(),
-  healthEnabled: z.boolean().optional(),
-  healthNotify: z.boolean().optional(),
-  healthIntervalSeconds: z.number().int().min(10).max(7 * 86400).optional(),
-  healthGraceSeconds: z.number().int().min(0).max(86400).optional(),
 };
-const createServiceBody = z.object({ name, ...serviceFields }).strict();
+const createServiceBody = z
+  .object({
+    name,
+    ...serviceFields,
+    // Optional: also create the service's "default" health monitor.
+    healthEnabled: z.boolean().optional(),
+    healthNotify: z.boolean().optional(),
+    healthIntervalSeconds: intervalSeconds.optional(),
+    healthGraceSeconds: graceSeconds.optional(),
+  })
+  .strict();
+const monitorFields = {
+  enabled: z.boolean().optional(),
+  notify: z.boolean().optional(),
+  intervalSeconds: intervalSeconds.optional(),
+  graceSeconds: graceSeconds.optional(),
+};
+const createMonitorBody = z
+  .object({
+    name,
+    key: z.string().trim().toLowerCase().regex(MONITOR_KEY_PATTERN, 'Use 1-40 lowercase letters, digits, "-" or "_"').optional(),
+    ...monitorFields,
+  })
+  .strict();
+const updateMonitorBody = z.object({ name: name.optional(), ...monitorFields }).strict();
 const updateServiceBody = z
-  .object({ name: name.optional(), status: z.enum(['ACTIVE', 'DISABLED']).optional(), ...serviceFields })
+  .object({
+    name: name.optional(),
+    status: z.enum(['ACTIVE', 'DISABLED']).optional(),
+    ...serviceFields,
+    // Backward compatible: applied to the service's "default" monitor.
+    healthEnabled: z.boolean().optional(),
+    healthNotify: z.boolean().optional(),
+    healthIntervalSeconds: intervalSeconds.optional(),
+    healthGraceSeconds: graceSeconds.optional(),
+  })
   .strict();
 
 const createDestinationBody = z
@@ -36,6 +70,7 @@ const backupQuery = pagination.extend({
 
 export function meView(ctx: AppContext, user: User) {
   const limits = ctx.limits.forUser(user);
+  const isAdmin = ctx.users.isAdmin(user);
   return {
     id: user.id,
     telegramId: user.telegramId,
@@ -47,7 +82,9 @@ export function meView(ctx: AppContext, user: User) {
     notifyHealth: user.notifyHealth,
     notifyBackupFailures: user.notifyBackupFailures,
     limits: {
-      maxServices: limits.maxServices,
+      /** null = unlimited (administrators). */
+      maxServices: isAdmin ? null : limits.maxServices,
+      maxMonitorsPerService: isAdmin ? null : ctx.settings.getDefaultLimits().maxMonitorsPerService,
       maxBackupBytes: limits.maxBackupBytes,
       apiRateLimit: limits.apiRateLimit,
       backupRateLimit: limits.backupRateLimit,
@@ -102,7 +139,7 @@ export async function webappRoutes(app: FastifyInstance, { ctx }: { ctx: AppCont
       return ok(reply, {
         stats: ctx.stats.dashboard(user.id),
         recentBackups: ctx.backups.list({ userId: user.id }, { limit: 5, offset: 0 }).items,
-        downServices: ctx.services.listForUser(user.id).filter((s) => s.healthEnabled && s.healthStatus === 'DOWN'),
+        downServices: ctx.services.listForUser(user.id).filter((s) => s.healthStatus === 'DOWN'),
       });
     });
 
@@ -122,14 +159,23 @@ export async function webappRoutes(app: FastifyInstance, { ctx }: { ctx: AppCont
     secured.get('/services/:id', async (request, reply) => {
       const { id } = parse(idParam, request.params);
       const service = ctx.services.getOwned(currentUser(request).id, id);
-      return ok(reply, { ...ctx.services.view(service), healthEvents: ctx.health.events(service.id, 20) });
+      return ok(reply, { ...withHistory(ctx, ctx.services.view(service)), healthEvents: ctx.health.serviceOutages(service.id, 20) });
     });
 
     secured.patch('/services/:id', async (request, reply) => {
+      const user = currentUser(request);
       const { id } = parse(idParam, request.params);
-      const body = parse(updateServiceBody, request.body);
-      const service = ctx.services.update(currentUser(request), id, body);
-      return ok(reply, ctx.services.view(service));
+      const { healthEnabled, healthNotify, healthIntervalSeconds, healthGraceSeconds, ...fields } = parse(updateServiceBody, request.body);
+      const service = ctx.services.update(user, id, fields);
+      if ([healthEnabled, healthNotify, healthIntervalSeconds, healthGraceSeconds].some((v) => v !== undefined)) {
+        ctx.monitors.configureDefault(user, service, {
+          enabled: healthEnabled,
+          notify: healthNotify,
+          intervalSeconds: healthIntervalSeconds,
+          graceSeconds: healthGraceSeconds,
+        });
+      }
+      return ok(reply, ctx.services.view(ctx.services.get(service.id)));
     });
 
     secured.delete('/services/:id', async (request, reply) => {
@@ -170,23 +216,30 @@ export async function webappRoutes(app: FastifyInstance, { ctx }: { ctx: AppCont
 
     secured.get('/health', async (request, reply) => {
       const user = currentUser(request);
-      const services = ctx.services.listForUser(user.id).map((s) => ({
-        id: s.id,
-        name: s.name,
-        status: s.status,
-        healthEnabled: s.healthEnabled,
-        healthNotify: s.healthNotify,
-        healthStatus: s.healthStatus,
-        healthIntervalSeconds: s.healthIntervalSeconds,
-        healthGraceSeconds: s.healthGraceSeconds,
-        lastHeartbeatAt: s.lastHeartbeatAt,
-        wentDownAt: s.wentDownAt,
-        lastRecoveredAt: s.lastRecoveredAt,
-        totalDowntimeSeconds: s.totalDowntimeSeconds,
-        downCount: s.downCount,
-        uptimeSinceCreationPercent: uptimePercent(s.createdAt, s.totalDowntimeSeconds, s.wentDownAt),
-      }));
-      return ok(reply, { services, events: ctx.health.recentEventsForUser(user.id, 50) });
+      const services = ctx.services.listForUser(user.id).map((s) => withHistory(ctx, s));
+      return ok(reply, { historyDays: HISTORY_DAYS, services, events: ctx.health.recentOutagesForUser(user.id, 50) });
+    });
+
+    // -------------------------------------------------------------- Monitors
+
+    secured.post('/services/:id/monitors', async (request, reply) => {
+      const user = currentUser(request);
+      const { id } = parse(idParam, request.params);
+      const body = parse(createMonitorBody, request.body);
+      const monitor = ctx.monitors.create(user, ctx.services.getOwned(user.id, id), body);
+      return ok(reply, toMonitorView(monitor), 201);
+    });
+
+    secured.patch('/monitors/:id', async (request, reply) => {
+      const { id } = parse(idParam, request.params);
+      const body = parse(updateMonitorBody, request.body);
+      return ok(reply, toMonitorView(ctx.monitors.update(currentUser(request).id, id, body)));
+    });
+
+    secured.delete('/monitors/:id', async (request, reply) => {
+      const { id } = parse(idParam, request.params);
+      ctx.monitors.delete(currentUser(request).id, id);
+      return ok(reply, { deleted: true });
     });
 
     // -------------------------------------------------------------- Destinations
@@ -236,9 +289,8 @@ export async function webappRoutes(app: FastifyInstance, { ctx }: { ctx: AppCont
   });
 }
 
-function uptimePercent(createdAt: Date, totalDowntimeSeconds: number, wentDownAt: Date | null): number {
-  const now = Date.now();
-  const lifetime = Math.max(1, (now - createdAt.getTime()) / 1000);
-  const ongoing = wentDownAt ? (now - wentDownAt.getTime()) / 1000 : 0;
-  return Math.max(0, Math.min(100, Math.round((1 - (totalDowntimeSeconds + ongoing) / lifetime) * 10000) / 100));
+/** Attach each monitor's 7-day health history to a service view. */
+function withHistory(ctx: AppContext, service: ServiceView) {
+  const history = ctx.health.history(service.monitors);
+  return { ...service, monitors: service.monitors.map((m) => ({ ...m, history: history.get(m.id) })) };
 }

@@ -4,7 +4,9 @@ export type BackupStatus = 'RECEIVED' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
 export type DestinationType = 'PRIVATE_CHAT' | 'GROUP' | 'GROUP_TOPIC' | 'CHANNEL';
 
 export interface Limits {
-  maxServices: number;
+  /** null = unlimited (administrators). */
+  maxServices: number | null;
+  maxMonitorsPerService: number | null;
   maxBackupBytes: number;
   apiRateLimit: string;
   backupRateLimit: string;
@@ -25,6 +27,25 @@ export interface Me {
   serviceCount: number;
 }
 
+export interface Monitor {
+  id: string;
+  key: string;
+  name: string;
+  enabled: boolean;
+  notify: boolean;
+  status: HealthStatus;
+  intervalSeconds: number;
+  graceSeconds: number;
+  lastHeartbeatAt: string | null;
+  wentDownAt: string | null;
+  lastRecoveredAt: string | null;
+  totalDowntimeSeconds: number;
+  downCount: number;
+  createdAt: string;
+  /** Present on the service detail and Health endpoints. */
+  history?: HealthHistory;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -35,8 +56,8 @@ export interface Service {
   healthEnabled: boolean;
   healthNotify: boolean;
   healthStatus: HealthStatus;
-  healthIntervalSeconds: number;
-  healthGraceSeconds: number;
+  healthIntervalSeconds: number | null;
+  healthGraceSeconds: number | null;
   lastHeartbeatAt: string | null;
   wentDownAt: string | null;
   lastRecoveredAt: string | null;
@@ -50,6 +71,7 @@ export interface Service {
   heartbeatRateLimit: string | null;
   createdAt: string;
   updatedAt: string;
+  monitors: Monitor[];
   destination: { id: string; name: string; type: DestinationType; verified: boolean } | null;
   token: { prefix: string; createdAt: string; lastUsedAt: string | null } | null;
 }
@@ -57,11 +79,31 @@ export interface Service {
 export interface HealthEvent {
   id: string;
   serviceId: string;
+  monitorId: string;
   serviceName?: string;
+  monitorName?: string;
+  monitorKey?: string;
   eventType: 'OUTAGE';
   startedAt: string;
   endedAt: string | null;
   durationSeconds: number | null;
+}
+
+export interface HealthSegment {
+  type: 'OUTAGE' | 'NO_DATA';
+  start: string;
+  end: string | null;
+}
+
+export interface HealthHistory {
+  windowStart: string;
+  windowEnd: string;
+  historyStart: string;
+  segments: HealthSegment[];
+  uptimePercent: number | null;
+  downtimeSeconds: number;
+  outages: number;
+  lastOutage: HealthEvent | null;
 }
 
 export interface Destination {
@@ -116,6 +158,7 @@ export interface DefaultLimits {
   serviceCreateRateLimit: string;
   maxBackupSizeMb: number;
   maxServicesPerUser: number;
+  maxMonitorsPerService: number;
 }
 
 export interface AdminUser {

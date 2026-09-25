@@ -17,7 +17,7 @@ const api = useApi();
 const toast = useToast();
 const { data: stats, loading, error } = useLoader(() => api.get<SystemStats>('/admin/stats'));
 
-const limits = reactive<DefaultLimits>({ apiRateLimit: '', backupRateLimit: '', heartbeatRateLimit: '', serviceCreateRateLimit: '', maxBackupSizeMb: 0, maxServicesPerUser: 0 });
+const limits = reactive<DefaultLimits>({ apiRateLimit: '', backupRateLimit: '', heartbeatRateLimit: '', serviceCreateRateLimit: '', maxBackupSizeMb: 0, maxServicesPerUser: 0, maxMonitorsPerService: 0 });
 const envDefaults = ref<DefaultLimits>();
 onMounted(async () => {
   const res = await api.get<{ limits: DefaultLimits; envDefaults: DefaultLimits }>('/admin/settings/limits');
@@ -27,7 +27,7 @@ onMounted(async () => {
 
 async function saveLimits() {
   try {
-    const res = await api.put<{ limits: DefaultLimits }>('/admin/settings/limits', { ...limits, maxBackupSizeMb: Number(limits.maxBackupSizeMb), maxServicesPerUser: Number(limits.maxServicesPerUser) });
+    const res = await api.put<{ limits: DefaultLimits }>('/admin/settings/limits', { ...limits, maxBackupSizeMb: Number(limits.maxBackupSizeMb), maxServicesPerUser: Number(limits.maxServicesPerUser), maxMonitorsPerService: Number(limits.maxMonitorsPerService) });
     Object.assign(limits, res.limits);
     toast.success('Default limits saved');
   } catch (err) {
@@ -81,12 +81,14 @@ async function resetLimits() {
       <div class="hint">Formats: <code>60/minute</code>, <code>30/hour</code>, <code>100/15m</code>, <code>unlimited</code>. API &amp; backup limits apply per user across all services.</div>
       <label class="field"><span>API requests (per user) · env {{ envDefaults?.apiRateLimit }}</span><input v-model="limits.apiRateLimit" class="input mono" /></label>
       <label class="field"><span>Backups (per user) · env {{ envDefaults?.backupRateLimit }}</span><input v-model="limits.backupRateLimit" class="input mono" /></label>
-      <label class="field"><span>Heartbeats (per service) · env {{ envDefaults?.heartbeatRateLimit }}</span><input v-model="limits.heartbeatRateLimit" class="input mono" /></label>
+      <label class="field"><span>Heartbeats (per monitor) · env {{ envDefaults?.heartbeatRateLimit }}</span><input v-model="limits.heartbeatRateLimit" class="input mono" /></label>
       <label class="field"><span>Service creation (per user) · env {{ envDefaults?.serviceCreateRateLimit }}</span><input v-model="limits.serviceCreateRateLimit" class="input mono" /></label>
       <div class="row" style="flex-wrap: nowrap">
         <label class="field" style="flex: 1"><span>Max backup MB</span><input v-model.number="limits.maxBackupSizeMb" class="input" type="number" min="1" /></label>
         <label class="field" style="flex: 1"><span>Max services / user</span><input v-model.number="limits.maxServicesPerUser" class="input" type="number" min="0" /></label>
       </div>
+      <label class="field"><span>Max monitors / service</span><input v-model.number="limits.maxMonitorsPerService" class="input" type="number" min="1" /></label>
+      <div class="hint">Administrators are not limited in services or monitors.</div>
       <div class="row">
         <button class="btn">Save defaults</button>
         <button type="button" class="btn secondary" @click="resetLimits">Reset to env</button>

@@ -91,6 +91,7 @@ const atLimit = computed(() => (services.value?.length ?? 0) >= (auth.user?.limi
           <NuxtLink v-if="!destinations.length" to="/destinations" class="hint">Add a destination first →</NuxtLink>
         </label>
         <label class="switch">Health monitoring <input v-model="form.healthEnabled" type="checkbox" /></label>
+        <div v-if="form.healthEnabled" class="hint">Creates a “Default” monitor. You can add more monitors (worker, cron job…) on the service page.</div>
         <div v-if="form.healthEnabled" class="row" style="flex-wrap: nowrap">
           <label class="field" style="flex: 1"><span>Interval (s)</span><input v-model.number="form.healthIntervalSeconds" class="input" type="number" min="10" /></label>
           <label class="field" style="flex: 1"><span>Grace (s)</span><input v-model.number="form.healthGraceSeconds" class="input" type="number" min="0" /></label>

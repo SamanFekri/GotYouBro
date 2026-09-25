@@ -11,23 +11,284 @@ sequenceDiagram
   autonumber
   actor actor_user as User
   participant routes_server_src_api_v1_app as routes
+  participant http as http
+  participant telegram_init_data as telegram-init-data
+  participant app as app
+  participant webapp_auth as webapp-auth
+  participant services_service as services.service
   actor actor_external_system as External system
   participant routes_server_src_api_v1_backups as routes
   participant service_auth as service-auth
   participant backups_service as backups.service
-  participant http as http
   participant ext_node_fs as ☁ node:fs
   participant filenames as filenames
   participant ext_node_path as ☁ node:path
   participant ids as ids
+  actor __unknown_actor__ as Unknown actor
+  participant routes_server_src_api_v1_service as routes
   rect rgb(245, 245, 245)
     Note over actor_user: Flow: Build signed-in user profile and limits
     actor_user->>routes_server_src_api_v1_app: meView
     routes_server_src_api_v1_app-->>actor_user: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_user: Flow: Calculate service uptime percentage
-    actor_user->>routes_server_src_api_v1_app: uptimePercent
+    Note over actor_user: Flow: Create Auth
+    actor_user->>routes_server_src_api_v1_app: POST /auth
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>telegram_init_data: validateInitData
+    telegram_init_data-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>app: sign
+    app-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Me
+    actor_user->>routes_server_src_api_v1_app: GET /me
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Update Setting
+    actor_user->>routes_server_src_api_v1_app: PATCH /me/settings
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Dashboard
+    actor_user->>routes_server_src_api_v1_app: GET /dashboard
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Services
+    actor_user->>routes_server_src_api_v1_app: GET /services
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Create Service
+    actor_user->>routes_server_src_api_v1_app: POST /services
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Service
+    actor_user->>routes_server_src_api_v1_app: GET /services/:id
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Update Service
+    actor_user->>routes_server_src_api_v1_app: PATCH /services/:id
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Delete Service
+    actor_user->>routes_server_src_api_v1_app: DELETE /services/:id
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Create Token
+    actor_user->>routes_server_src_api_v1_app: POST /services/:id/token
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Delete Token
+    actor_user->>routes_server_src_api_v1_app: DELETE /services/:id/token
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Health
+    actor_user->>routes_server_src_api_v1_app: GET /health
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Create Monitor
+    actor_user->>routes_server_src_api_v1_app: POST /services/:id/monitors
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>services_service: toMonitorView
+    services_service-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Update Monitor
+    actor_user->>routes_server_src_api_v1_app: PATCH /monitors/:id
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>services_service: toMonitorView
+    services_service-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Delete Monitor
+    actor_user->>routes_server_src_api_v1_app: DELETE /monitors/:id
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Destinations
+    actor_user->>routes_server_src_api_v1_app: GET /destinations
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Create Destination
+    actor_user->>routes_server_src_api_v1_app: POST /destinations
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Create Private
+    actor_user->>routes_server_src_api_v1_app: POST /destinations/private
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Create Verify
+    actor_user->>routes_server_src_api_v1_app: POST /destinations/:id/verify
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Update Destination
+    actor_user->>routes_server_src_api_v1_app: PATCH /destinations/:id
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Delete Destination
+    actor_user->>routes_server_src_api_v1_app: DELETE /destinations/:id
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Backups
+    actor_user->>routes_server_src_api_v1_app: GET /backups
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: Get Backup
+    actor_user->>routes_server_src_api_v1_app: GET /backups/:id
+    routes_server_src_api_v1_app->>http: parse
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>http: ok
+    http-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app->>webapp_auth: currentUser
+    webapp_auth-->>routes_server_src_api_v1_app: result
+    routes_server_src_api_v1_app-->>actor_user: response
+  end
+  rect rgb(245, 245, 245)
+    Note over actor_user: Flow: With History
+    actor_user->>routes_server_src_api_v1_app: withHistory
     routes_server_src_api_v1_app-->>actor_user: response
   end
   rect rgb(245, 245, 245)
@@ -39,7 +300,7 @@ sequenceDiagram
     backups_service-->>routes_server_src_api_v1_backups: result
     routes_server_src_api_v1_backups->>http: ok
     http-->>routes_server_src_api_v1_backups: result
-    routes_server_src_api_v1_backups->>ext_node_fs: mkdir
+    routes_server_src_api_v1_backups-)ext_node_fs: mkdir
     ext_node_fs-->>routes_server_src_api_v1_backups: result
     routes_server_src_api_v1_backups->>filenames: resolveInside
     filenames->>ext_node_path: resolve
@@ -90,9 +351,50 @@ sequenceDiagram
     actor_external_system->>routes_server_src_api_v1_backups: withTimeout
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
+  rect rgb(245, 245, 245)
+    Note over __unknown_actor__: Flow: Get Service
+    __unknown_actor__->>routes_server_src_api_v1_service: GET /service
+    routes_server_src_api_v1_service->>service_auth: authenticatedService
+    service_auth-->>routes_server_src_api_v1_service: result
+    routes_server_src_api_v1_service->>http: ok
+    http-->>routes_server_src_api_v1_service: result
+    routes_server_src_api_v1_service-->>__unknown_actor__: response
+  end
   %% UMLFLOW MANUAL BEGIN
   %% UMLFLOW MANUAL END
 ```
+
+**Analysis notes**
+
+- ❓ 1 flow(s) start from an unknown actor. Declare one with `umlflow declare actor <Name> --for <Component>`.
+- ≈ 1 interaction(s) were resolved by naming heuristics rather than typed references (marked "?").
+- ≈ Uncertain name: Create Auth — named by heuristic from routes@server/src/api/v1/app.route_1; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Me — named by heuristic from routes@server/src/api/v1/app.route_2; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Update Setting — named by heuristic from routes@server/src/api/v1/app.route_3; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Dashboard — named by heuristic from routes@server/src/api/v1/app.route_4; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Services — named by heuristic from routes@server/src/api/v1/app.route_5; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Create Service — named by heuristic from routes@server/src/api/v1/app.route_6; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Service — named by heuristic from routes@server/src/api/v1/app.route_7; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Update Service — named by heuristic from routes@server/src/api/v1/app.route_8; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Delete Service — named by heuristic from routes@server/src/api/v1/app.route_9; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Create Token — named by heuristic from routes@server/src/api/v1/app.route_10; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Delete Token — named by heuristic from routes@server/src/api/v1/app.route_11; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Health — named by heuristic from routes@server/src/api/v1/app.route_12; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Create Monitor — named by heuristic from routes@server/src/api/v1/app.route_13; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Update Monitor — named by heuristic from routes@server/src/api/v1/app.route_14; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Delete Monitor — named by heuristic from routes@server/src/api/v1/app.route_15; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Destinations — named by heuristic from routes@server/src/api/v1/app.route_16; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Create Destination — named by heuristic from routes@server/src/api/v1/app.route_17; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Create Private — named by heuristic from routes@server/src/api/v1/app.route_18; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Create Verify — named by heuristic from routes@server/src/api/v1/app.route_19; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Update Destination — named by heuristic from routes@server/src/api/v1/app.route_20; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Delete Destination — named by heuristic from routes@server/src/api/v1/app.route_21; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Backups — named by heuristic from routes@server/src/api/v1/app.route_22; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Backup — named by heuristic from routes@server/src/api/v1/app.route_23; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: With History — named by heuristic from routes@server/src/api/v1/app.withHistory; confirm with `umlflow semantic questions --kind flow-name`
+- ≈ Uncertain name: Get Service — named by heuristic from routes@server/src/api/v1/service.route_1; confirm with `umlflow semantic questions --kind flow-name`
+- ℹ 1 interaction(s) are awaited / asynchronous (drawn with an open arrow).
+- ℹ Flow "Create Auth": 1 call(s) target components whose operation could not be resolved; their downstream calls are not shown.
 <!-- UMLFLOW GENERATED END -->
 
 <!-- UMLFLOW MANUAL BEGIN — your notes below are preserved -->

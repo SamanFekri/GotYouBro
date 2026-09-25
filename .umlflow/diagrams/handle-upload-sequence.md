@@ -27,7 +27,7 @@ sequenceDiagram
     backups_service-->>routes_server_src_api_v1_backups: result
     routes_server_src_api_v1_backups->>http: ok
     http-->>routes_server_src_api_v1_backups: result
-    routes_server_src_api_v1_backups->>ext_node_fs: mkdir
+    routes_server_src_api_v1_backups-)ext_node_fs: mkdir
     ext_node_fs-->>routes_server_src_api_v1_backups: result
     routes_server_src_api_v1_backups->>filenames: resolveInside
     filenames->>ext_node_path: resolve
@@ -42,6 +42,10 @@ sequenceDiagram
   %% UMLFLOW MANUAL BEGIN
   %% UMLFLOW MANUAL END
 ```
+
+**Analysis notes**
+
+- ℹ 1 interaction(s) are awaited / asynchronous (drawn with an open arrow).
 <!-- UMLFLOW GENERATED END -->
 
 <!-- UMLFLOW MANUAL BEGIN — your notes below are preserved -->

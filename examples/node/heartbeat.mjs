@@ -3,6 +3,7 @@
 //
 //   GOTYOUBRO_URL=https://gotyoubro.example.com GOTYOUBRO_TOKEN=gyb_... node heartbeat.mjs
 //   node heartbeat.mjs --once          # single heartbeat, e.g. at the end of a cron job
+//   GOTYOUBRO_MONITOR=worker node heartbeat.mjs   # heartbeat for the service's "worker" monitor
 //
 // To use it inside your app, copy `sendHeartbeat` and call `startHeartbeat()` once at startup.
 
@@ -11,9 +12,11 @@ import { pathToFileURL } from 'node:url';
 const BASE_URL = (process.env.GOTYOUBRO_URL ?? 'http://localhost:6969').replace(/\/+$/, '');
 const TOKEN = process.env.GOTYOUBRO_TOKEN;
 const INTERVAL_SECONDS = Number(process.env.GOTYOUBRO_INTERVAL ?? 30);
+// Optional monitor key (a service can have several monitors: api, worker, nightly-job…).
+const MONITOR = process.env.GOTYOUBRO_MONITOR ?? '';
 
 export async function sendHeartbeat() {
-  const response = await fetch(`${BASE_URL}/api/v1/health/heartbeat`, {
+  const response = await fetch(`${BASE_URL}/api/v1/health/heartbeat${MONITOR ? `/${encodeURIComponent(MONITOR)}` : ''}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${TOKEN}` },
     signal: AbortSignal.timeout(10_000),

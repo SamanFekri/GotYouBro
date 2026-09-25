@@ -1,6 +1,6 @@
 import { and, eq, gte, sql } from 'drizzle-orm';
 import type { Db } from '../database/client.js';
-import { backups, destinations, healthEvents, services, users } from '../database/schema.js';
+import { backups, destinations, healthEvents, monitors, services, users } from '../database/schema.js';
 
 const DAY_MS = 86_400_000;
 
@@ -9,16 +9,25 @@ export class StatsService {
 
   dashboard(userId: string) {
     const since = new Date(Date.now() - DAY_MS * 7);
-    const svc = this.db
-      .select({
-        total: sql<number>`count(*)`,
-        healthy: sql<number>`coalesce(sum(${services.healthEnabled} = 1 AND ${services.healthStatus} = 'HEALTHY'), 0)`,
-        down: sql<number>`coalesce(sum(${services.healthEnabled} = 1 AND ${services.healthStatus} = 'DOWN'), 0)`,
-        monitored: sql<number>`coalesce(sum(${services.healthEnabled} = 1), 0)`,
-      })
-      .from(services)
-      .where(eq(services.userId, userId))
-      .get()!;
+    const total = this.db.select({ n: sql<number>`count(*)` }).from(services).where(eq(services.userId, userId)).get()?.n ?? 0;
+    const activeMonitors = this.db
+      .select({ serviceId: monitors.serviceId, status: monitors.status })
+      .from(monitors)
+      .innerJoin(services, eq(services.id, monitors.serviceId))
+      .where(and(eq(services.userId, userId), eq(monitors.enabled, true)))
+      .all();
+    // A service's health is the worst state of its enabled monitors.
+    const byService = new Map<string, string[]>();
+    for (const m of activeMonitors) byService.set(m.serviceId, [...(byService.get(m.serviceId) ?? []), m.status]);
+    const worst = [...byService.values()].map((st) => (st.includes('DOWN') ? 'DOWN' : st.includes('UNKNOWN') ? 'UNKNOWN' : 'HEALTHY'));
+    const svc = {
+      total,
+      monitored: byService.size,
+      healthy: worst.filter((w) => w === 'HEALTHY').length,
+      down: worst.filter((w) => w === 'DOWN').length,
+      monitors: activeMonitors.length,
+      monitorsDown: activeMonitors.filter((m) => m.status === 'DOWN').length,
+    };
     const bk = this.db
       .select({
         recent: sql<number>`count(*)`,
@@ -32,6 +41,8 @@ export class StatsService {
     return {
       totalServices: svc.total,
       monitoredServices: svc.monitored,
+      activeMonitors: svc.monitors,
+      downMonitors: svc.monitorsDown,
       healthyServices: svc.healthy,
       downServices: svc.down,
       recentBackups: bk.recent,
@@ -55,8 +66,19 @@ export class StatsService {
       services: {
         total: count(this.db.select({ n }).from(services).get()),
         suspended: count(this.db.select({ n }).from(services).where(eq(services.status, 'SUSPENDED')).get()),
-        monitored: count(this.db.select({ n }).from(services).where(eq(services.healthEnabled, true)).get()),
-        down: count(this.db.select({ n }).from(services).where(and(eq(services.healthEnabled, true), eq(services.healthStatus, 'DOWN'))).get()),
+        monitored: count(this.db.select({ n: sql<number>`count(DISTINCT ${monitors.serviceId})` }).from(monitors).where(eq(monitors.enabled, true)).get()),
+        down: count(
+          this.db
+            .select({ n: sql<number>`count(DISTINCT ${monitors.serviceId})` })
+            .from(monitors)
+            .where(and(eq(monitors.enabled, true), eq(monitors.status, 'DOWN')))
+            .get(),
+        ),
+      },
+      monitors: {
+        total: count(this.db.select({ n }).from(monitors).get()),
+        active: count(this.db.select({ n }).from(monitors).where(eq(monitors.enabled, true)).get()),
+        down: count(this.db.select({ n }).from(monitors).where(and(eq(monitors.enabled, true), eq(monitors.status, 'DOWN'))).get()),
       },
       destinations: count(this.db.select({ n }).from(destinations).get()),
       backups: {

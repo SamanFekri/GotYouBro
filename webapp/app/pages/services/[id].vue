@@ -18,10 +18,6 @@ const form = reactive({
   description: '',
   destinationId: '',
   apiEnabled: true,
-  healthEnabled: false,
-  healthNotify: true,
-  healthIntervalSeconds: 60,
-  healthGraceSeconds: 60,
 });
 watch(service, (s) => {
   if (!s) return;
@@ -30,10 +26,6 @@ watch(service, (s) => {
     description: s.description ?? '',
     destinationId: s.destinationId ?? '',
     apiEnabled: s.apiEnabled,
-    healthEnabled: s.healthEnabled,
-    healthNotify: s.healthNotify,
-    healthIntervalSeconds: s.healthIntervalSeconds,
-    healthGraceSeconds: s.healthGraceSeconds,
   });
 });
 
@@ -46,10 +38,6 @@ async function save() {
       description: form.description || null,
       destinationId: form.destinationId || null,
       apiEnabled: form.apiEnabled,
-      healthEnabled: form.healthEnabled,
-      healthNotify: form.healthNotify,
-      healthIntervalSeconds: Number(form.healthIntervalSeconds),
-      healthGraceSeconds: Number(form.healthGraceSeconds),
     });
     toast.success('Saved');
     await reload();
@@ -108,6 +96,32 @@ async function remove() {
 }
 
 const healthLabel = computed(() => (service.value?.healthEnabled ? service.value.healthStatus : 'OFF'));
+
+// ---- Monitors
+const addingMonitor = ref(false);
+const monitorForm = reactive({ name: '', key: '', intervalSeconds: 60, graceSeconds: 60 });
+const savingMonitor = ref(false);
+async function addMonitor() {
+  savingMonitor.value = true;
+  try {
+    await api.post(`/app/services/${id.value}/monitors`, {
+      name: monitorForm.name,
+      ...(monitorForm.key ? { key: monitorForm.key.trim().toLowerCase() } : {}),
+      intervalSeconds: Number(monitorForm.intervalSeconds),
+      graceSeconds: Number(monitorForm.graceSeconds),
+    });
+    toast.success('Monitor added');
+    addingMonitor.value = false;
+    Object.assign(monitorForm, { name: '', key: '' });
+    await reload();
+  } catch (err) {
+    toast.error((err as Error).message);
+  } finally {
+    savingMonitor.value = false;
+  }
+}
+const monitorLimit = computed(() => auth.user?.limits.maxMonitorsPerService ?? null);
+const atMonitorLimit = computed(() => monitorLimit.value !== null && (service.value?.monitors.length ?? 0) >= monitorLimit.value);
 </script>
 
 <template>
@@ -158,6 +172,18 @@ const healthLabel = computed(() => (service.value?.healthEnabled ? service.value
         </div>
       </div>
 
+      <div class="spread section-label">
+        <span>Health monitors ({{ service.monitors.length }})</span>
+        <button class="btn small secondary" :disabled="atMonitorLimit" @click="addingMonitor = true">+ Add monitor</button>
+      </div>
+      <EmptyState
+        v-if="!service.monitors.length"
+        emoji="💓"
+        title="No monitors yet"
+        text="Add a monitor for each part of this service you want to watch (API, worker, cron job…). Each gets its own heartbeat URL."
+      />
+      <MonitorCard v-for="m in service.monitors" :key="m.id" :monitor="m" editable @changed="reload" />
+
       <div class="section-label">Settings</div>
       <form class="card form" @submit.prevent="save">
         <label class="field"><span>Name</span><input v-model="form.name" class="input" required maxlength="80" /></label>
@@ -173,16 +199,6 @@ const healthLabel = computed(() => (service.value?.healthEnabled ? service.value
         </label>
         <label class="switch">API access <input v-model="form.apiEnabled" type="checkbox" /></label>
 
-        <div class="section-label" style="padding: 4px 0 0">Health monitoring</div>
-        <label class="switch">Monitor heartbeats <input v-model="form.healthEnabled" type="checkbox" /></label>
-        <template v-if="form.healthEnabled">
-          <label class="switch">Telegram alerts <input v-model="form.healthNotify" type="checkbox" /></label>
-          <div class="row" style="flex-wrap: nowrap">
-            <label class="field" style="flex: 1"><span>Heartbeat interval (s)</span><input v-model.number="form.healthIntervalSeconds" class="input" type="number" min="10" /></label>
-            <label class="field" style="flex: 1"><span>Grace period (s)</span><input v-model.number="form.healthGraceSeconds" class="input" type="number" min="0" /></label>
-          </div>
-          <div class="hint">Marked down if no heartbeat for {{ form.healthIntervalSeconds + form.healthGraceSeconds }}s.</div>
-        </template>
         <button class="btn block" :disabled="saving">{{ saving ? 'Saving…' : 'Save changes' }}</button>
       </form>
 
@@ -191,7 +207,7 @@ const healthLabel = computed(() => (service.value?.healthEnabled ? service.value
         <div class="list">
           <div v-for="e in service.healthEvents" :key="e.id" class="list-item">
             <div class="grow">
-              <div class="title">{{ formatDate(e.startedAt) }}</div>
+              <div class="title">{{ e.monitorName }} · {{ formatDate(e.startedAt) }}</div>
               <div class="sub">{{ e.endedAt ? `Lasted ${formatDuration(e.durationSeconds)}` : 'Ongoing' }}</div>
             </div>
             <StatusBadge :status="e.endedAt ? 'HEALTHY' : 'DOWN'" />
@@ -207,6 +223,22 @@ const healthLabel = computed(() => (service.value?.healthEnabled ? service.value
         <button class="btn danger" @click="remove">Delete service</button>
       </div>
     </template>
+
+    <AppModal :open="addingMonitor" title="Add monitor" @close="addingMonitor = false">
+      <form class="form" @submit.prevent="addMonitor">
+        <label class="field"><span>Name</span><input v-model="monitorForm.name" class="input" required maxlength="80" placeholder="Queue worker" /></label>
+        <label class="field">
+          <span>Key (used in the heartbeat URL, optional)</span>
+          <input v-model="monitorForm.key" class="input mono" maxlength="40" pattern="[a-z0-9][a-z0-9_-]*" placeholder="queue-worker" />
+        </label>
+        <div class="row" style="flex-wrap: nowrap">
+          <label class="field" style="flex: 1"><span>Interval (s)</span><input v-model.number="monitorForm.intervalSeconds" class="input" type="number" min="10" /></label>
+          <label class="field" style="flex: 1"><span>Grace (s)</span><input v-model.number="monitorForm.graceSeconds" class="input" type="number" min="0" /></label>
+        </div>
+        <div class="hint">Marked down if no heartbeat arrives for {{ formatDuration(monitorForm.intervalSeconds + monitorForm.graceSeconds) }}.</div>
+        <button class="btn block" :disabled="savingMonitor || !monitorForm.name">{{ savingMonitor ? 'Adding…' : 'Add monitor' }}</button>
+      </form>
+    </AppModal>
 
     <TokenReveal :token="newToken" :service-name="service?.name" @close="newToken = null" />
   </div>

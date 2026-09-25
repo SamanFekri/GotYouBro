@@ -5,6 +5,7 @@ import {
   apiCredentials,
   destinations,
   services,
+  type Monitor,
   users,
   type ApiCredential,
   type Destination,
@@ -18,13 +19,20 @@ import type { LimitsService } from '../rate-limit/limits.js';
 import type { RateLimiter } from '../rate-limit/rate-limit.js';
 import type { CredentialsService } from './credentials.service.js';
 import type { DestinationsService } from './destinations.service.js';
-import type { HealthService } from './health.service.js';
+import { DEFAULT_MONITOR_KEY } from './health.service.js';
+import { aggregateHealth, type MonitorsService } from './monitors.service.js';
+import { isAdminUser } from './users.service.js';
 
 export interface ServiceInput {
   name?: string;
   description?: string | null;
   destinationId?: string | null;
   apiEnabled?: boolean;
+}
+
+/** Creation-only convenience: also create the service's "default" health monitor. */
+export interface ServiceCreateInput extends ServiceInput {
+  name: string;
   healthEnabled?: boolean;
   healthNotify?: boolean;
   healthIntervalSeconds?: number;
@@ -40,14 +48,35 @@ export interface ServiceLimitOverrides {
 
 export type ServiceView = ReturnType<typeof toServiceView>;
 
+export function toMonitorView(m: Monitor) {
+  const { serviceId: _serviceId, ...rest } = m;
+  return rest;
+}
+
 export function toServiceView(
   service: Service,
   destination: Pick<Destination, 'id' | 'name' | 'type' | 'verified'> | null | undefined,
   credential: Pick<ApiCredential, 'tokenPrefix' | 'createdAt' | 'lastUsedAt'> | null | undefined,
+  serviceMonitors: Monitor[],
 ) {
   const { userId: _userId, ...rest } = service;
+  const beats = serviceMonitors.map((m) => m.lastHeartbeatAt?.getTime() ?? 0).filter(Boolean);
+  const primary = serviceMonitors.find((m) => m.key === DEFAULT_MONITOR_KEY) ?? serviceMonitors[0];
   return {
     ...rest,
+    monitors: serviceMonitors.map(toMonitorView),
+    // Service-level health, kept for backward compatibility with the pre-monitor API:
+    // aggregated over enabled monitors (worst state wins); interval/grace/notify from the default monitor.
+    healthEnabled: serviceMonitors.some((m) => m.enabled),
+    healthStatus: aggregateHealth(serviceMonitors) ?? 'UNKNOWN',
+    healthNotify: primary?.notify ?? true,
+    healthIntervalSeconds: primary?.intervalSeconds ?? null,
+    healthGraceSeconds: primary?.graceSeconds ?? null,
+    lastHeartbeatAt: beats.length ? new Date(Math.max(...beats)) : null,
+    wentDownAt: serviceMonitors.filter((m) => m.wentDownAt).map((m) => m.wentDownAt!).sort((a, b) => a.getTime() - b.getTime())[0] ?? null,
+    lastRecoveredAt: primary?.lastRecoveredAt ?? null,
+    totalDowntimeSeconds: serviceMonitors.reduce((sum, m) => sum + m.totalDowntimeSeconds, 0),
+    downCount: serviceMonitors.reduce((sum, m) => sum + m.downCount, 0),
     destination: destination ? { id: destination.id, name: destination.name, type: destination.type, verified: destination.verified } : null,
     token: credential ? { prefix: credential.tokenPrefix, createdAt: credential.createdAt, lastUsedAt: credential.lastUsedAt } : null,
   };
@@ -61,7 +90,7 @@ export class ServicesService {
     private readonly limiter: RateLimiter,
     private readonly credentials: CredentialsService,
     private readonly destinationsService: DestinationsService,
-    private readonly health: HealthService,
+    private readonly monitorsService: MonitorsService,
   ) {}
 
   /** Ownership-scoped lookup. Returns SERVICE_NOT_FOUND for other users' services (no existence leak). */
@@ -94,13 +123,16 @@ export class ServicesService {
     return this.db.select({ n: sql<number>`count(*)` }).from(services).where(eq(services.userId, userId)).get()?.n ?? 0;
   }
 
-  create(user: User, input: ServiceInput & { name: string }): { service: Service; token: string } {
-    const limits = this.limits.forUser(user);
-    if (this.countForUser(user.id) >= limits.maxServices) {
-      throw new AppError('LIMIT_EXCEEDED', `You can create at most ${limits.maxServices} services`);
+  create(user: User, input: ServiceCreateInput): { service: Service; token: string } {
+    // Administrators are not limited in how many services they create.
+    if (!isAdminUser(user, this.config)) {
+      const limits = this.limits.forUser(user);
+      if (this.countForUser(user.id) >= limits.maxServices) {
+        throw new AppError('LIMIT_EXCEEDED', `You can create at most ${limits.maxServices} services`);
+      }
+      const rate = this.limiter.consume([this.limits.serviceCreateCheck(user)]);
+      if (!rate.allowed) throw new AppError('RATE_LIMITED', 'Too many services created recently, try again later');
     }
-    const rate = this.limiter.consume([this.limits.serviceCreateCheck(user)]);
-    if (!rate.allowed) throw new AppError('RATE_LIMITED', 'Too many services created recently, try again later');
     if (input.destinationId) this.destinationsService.getOwned(user.id, input.destinationId);
 
     const now = new Date();
@@ -113,15 +145,20 @@ export class ServicesService {
         description: input.description ?? null,
         destinationId: input.destinationId ?? null,
         apiEnabled: input.apiEnabled ?? true,
-        healthEnabled: input.healthEnabled ?? false,
-        healthNotify: input.healthNotify ?? true,
-        healthIntervalSeconds: input.healthIntervalSeconds ?? this.config.defaults.heartbeatIntervalSeconds,
-        healthGraceSeconds: input.healthGraceSeconds ?? this.config.defaults.heartbeatGraceSeconds,
         createdAt: now,
         updatedAt: now,
       })
       .returning()
       .get();
+    if (input.healthEnabled) {
+      this.monitorsService.create(user, service, {
+        name: 'Default',
+        key: DEFAULT_MONITOR_KEY,
+        notify: input.healthNotify,
+        intervalSeconds: input.healthIntervalSeconds,
+        graceSeconds: input.healthGraceSeconds,
+      });
+    }
     const { token } = this.credentials.issue(service.id);
     return { service, token };
   }
@@ -182,30 +219,22 @@ export class ServicesService {
   }
 
   private applyUpdate(current: Service, input: ServiceInput & { status?: ServiceStatus }): Service {
-    const monitoringBefore = current.healthEnabled && current.status === 'ACTIVE';
-    const nextHealthEnabled = input.healthEnabled ?? current.healthEnabled;
-    const nextStatus = input.status ?? current.status;
-    const monitoringAfter = nextHealthEnabled && nextStatus === 'ACTIVE';
+    const activeBefore = current.status === 'ACTIVE';
+    const activeAfter = (input.status ?? current.status) === 'ACTIVE';
 
-    const updated = this.db
-      .update(services)
-      .set({
-        ...(input.name !== undefined && { name: input.name }),
-        ...(input.description !== undefined && { description: input.description }),
-        ...(input.destinationId !== undefined && { destinationId: input.destinationId }),
-        ...(input.apiEnabled !== undefined && { apiEnabled: input.apiEnabled }),
-        ...(input.healthEnabled !== undefined && { healthEnabled: input.healthEnabled }),
-        ...(input.healthNotify !== undefined && { healthNotify: input.healthNotify }),
-        ...(input.healthIntervalSeconds !== undefined && { healthIntervalSeconds: input.healthIntervalSeconds }),
-        ...(input.healthGraceSeconds !== undefined && { healthGraceSeconds: input.healthGraceSeconds }),
-        ...(input.status !== undefined && { status: input.status }),
-      })
-      .where(eq(services.id, current.id))
-      .returning()
-      .get();
+    const changes = {
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.description !== undefined && { description: input.description }),
+      ...(input.destinationId !== undefined && { destinationId: input.destinationId }),
+      ...(input.apiEnabled !== undefined && { apiEnabled: input.apiEnabled }),
+      ...(input.status !== undefined && { status: input.status }),
+    };
+    if (!Object.keys(changes).length) return current; // e.g. a PATCH that only touches monitors
+    const updated = this.db.update(services).set(changes).where(eq(services.id, current.id)).returning().get();
 
-    // Starting or stopping monitoring resets health state so stale heartbeats don't trigger alerts.
-    if (monitoringBefore !== monitoringAfter) return this.health.resetMonitoring(updated.id);
+    // Disabling, suspending or re-enabling a service restarts its monitors so stale heartbeats
+    // don't trigger alerts; the gap is recorded as "no data".
+    if (activeBefore !== activeAfter) this.monitorsService.resetForService(updated.id);
     return updated;
   }
 
@@ -221,6 +250,10 @@ export class ServicesService {
     const dests = destIds.length ? this.db.select().from(destinations).where(inArray(destinations.id, destIds)).all() : [];
     const credBy = new Map(creds.map((c) => [c.serviceId, c]));
     const destBy = new Map(dests.map((d) => [d.id, d]));
-    return rows.map((s) => toServiceView(s, s.destinationId ? destBy.get(s.destinationId) : null, credBy.get(s.id)));
+    const monitorsBy = new Map<string, Monitor[]>();
+    for (const m of this.monitorsService.listForServices(ids)) monitorsBy.set(m.serviceId, [...(monitorsBy.get(m.serviceId) ?? []), m]);
+    return rows.map((s) =>
+      toServiceView(s, s.destinationId ? destBy.get(s.destinationId) : null, credBy.get(s.id), monitorsBy.get(s.id) ?? []),
+    );
   }
 }

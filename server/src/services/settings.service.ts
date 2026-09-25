@@ -14,6 +14,7 @@ export const defaultLimitsSchema = z.object({
   serviceCreateRateLimit: rateLimitString,
   maxBackupSizeMb: z.number().int().min(1).max(4000),
   maxServicesPerUser: z.number().int().min(0).max(10_000),
+  maxMonitorsPerService: z.number().int().min(1).max(1000),
 });
 
 export type DefaultLimits = z.infer<typeof defaultLimitsSchema>;
@@ -41,6 +42,7 @@ export class SettingsService {
       serviceCreateRateLimit: d.serviceCreateRateLimit,
       maxBackupSizeMb: d.maxBackupSizeMb,
       maxServicesPerUser: d.maxServicesPerUser,
+      maxMonitorsPerService: d.maxMonitorsPerService,
     };
   }
 

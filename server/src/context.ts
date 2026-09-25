@@ -8,6 +8,7 @@ import { BackupsService } from './services/backups.service.js';
 import { CredentialsService } from './services/credentials.service.js';
 import { DestinationsService } from './services/destinations.service.js';
 import { HealthService } from './services/health.service.js';
+import { MonitorsService } from './services/monitors.service.js';
 import type { BackupDestinationProvider, NotificationProvider } from './services/providers.js';
 import { ServicesService } from './services/services.service.js';
 import { SettingsService } from './services/settings.service.js';
@@ -44,7 +45,8 @@ export function createContext(deps: ContextDeps) {
   const credentials = new CredentialsService(db);
   const destinations = new DestinationsService(db, telegram, logger.child({ module: 'destinations' }));
   const health = new HealthService(db, notifier, logger.child({ module: 'health' }), deps.now);
-  const services = new ServicesService(db, config, limits, limiter, credentials, destinations, health);
+  const monitors = new MonitorsService(db, config, settings, health);
+  const services = new ServicesService(db, config, limits, limiter, credentials, destinations, monitors);
   const backups = new BackupsService(db, backupDestination, notifier, logger.child({ module: 'backups' }));
   const stats = new StatsService(db);
   const backupQueue = new BackupQueue(backups, config.backupConcurrency, logger.child({ module: 'queue' }));
@@ -64,6 +66,7 @@ export function createContext(deps: ContextDeps) {
     credentials,
     destinations,
     health,
+    monitors,
     services,
     backups,
     stats,

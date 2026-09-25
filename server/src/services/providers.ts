@@ -31,6 +31,6 @@ export interface NotificationProvider {
 }
 
 export type NotificationMessage =
-  | { kind: 'service_down'; serviceName: string; lastHeartbeatAt: Date | null }
-  | { kind: 'service_recovered'; serviceName: string; recoveredAt: Date; downtimeSeconds: number }
+  | { kind: 'service_down'; serviceName: string; monitorName: string; lastHeartbeatAt: Date | null }
+  | { kind: 'service_recovered'; serviceName: string; monitorName: string; recoveredAt: Date; downtimeSeconds: number }
   | { kind: 'backup_failed'; serviceName: string; backupId: string; filename: string; reason: string };

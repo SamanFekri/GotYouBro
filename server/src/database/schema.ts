@@ -16,6 +16,7 @@ export const SERVICE_STATUSES = ['ACTIVE', 'DISABLED', 'SUSPENDED'] as const;
 export const HEALTH_STATUSES = ['UNKNOWN', 'HEALTHY', 'DOWN'] as const;
 export const DESTINATION_TYPES = ['PRIVATE_CHAT', 'GROUP', 'GROUP_TOPIC', 'CHANNEL'] as const;
 export const BACKUP_STATUSES = ['RECEIVED', 'PROCESSING', 'SUCCESS', 'FAILED'] as const;
+export const HEALTH_EVENT_TYPES = ['OUTAGE', 'NO_DATA'] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 /** ACTIVE / DISABLED are controlled by the owner; SUSPENDED is set by an admin and only an admin can lift it. */
@@ -75,18 +76,6 @@ export const services = sqliteTable(
     apiEnabled: integer('api_enabled', { mode: 'boolean' }).notNull().default(true),
     destinationId: text('destination_id').references(() => destinations.id, { onDelete: 'set null' }),
 
-    // Health monitoring: current state + aggregates only. Heartbeats are never stored individually.
-    healthEnabled: integer('health_enabled', { mode: 'boolean' }).notNull().default(false),
-    healthNotify: integer('health_notify', { mode: 'boolean' }).notNull().default(true),
-    healthStatus: text('health_status', { enum: HEALTH_STATUSES }).notNull().default('UNKNOWN'),
-    healthIntervalSeconds: integer('health_interval_seconds').notNull().default(60),
-    healthGraceSeconds: integer('health_grace_seconds').notNull().default(60),
-    lastHeartbeatAt: integer('last_heartbeat_at', { mode: 'timestamp_ms' }),
-    wentDownAt: integer('went_down_at', { mode: 'timestamp_ms' }),
-    lastRecoveredAt: integer('last_recovered_at', { mode: 'timestamp_ms' }),
-    totalDowntimeSeconds: integer('total_downtime_seconds').notNull().default(0),
-    downCount: integer('down_count').notNull().default(0),
-
     // Backup aggregates (avoid COUNT(*) scans for the service list).
     lastBackupAt: integer('last_backup_at', { mode: 'timestamp_ms' }),
     backupCount: integer('backup_count').notNull().default(0),
@@ -98,7 +87,7 @@ export const services = sqliteTable(
     heartbeatRateLimit: text('heartbeat_rate_limit'),
     ...timestamps,
   },
-  (t) => [index('services_user_idx').on(t.userId), index('services_health_idx').on(t.healthEnabled, t.healthStatus)],
+  (t) => [index('services_user_idx').on(t.userId)],
 );
 
 export const apiCredentials = sqliteTable(
@@ -148,7 +137,40 @@ export const backups = sqliteTable(
   ],
 );
 
-/** One row per outage (not per heartbeat), so size grows with incidents only. */
+/**
+ * A health monitor of a service. A service can have several (e.g. "api", "worker", "nightly-job"),
+ * each fed by heartbeats sent to /health/heartbeat/<key>. Only the current state and aggregates are
+ * stored here; individual heartbeats are never stored.
+ */
+export const monitors = sqliteTable(
+  'monitors',
+  {
+    id: text('id').primaryKey(),
+    serviceId: text('service_id')
+      .notNull()
+      .references(() => services.id, { onDelete: 'cascade' }),
+    /** URL-safe identifier used in the heartbeat URL, unique per service. */
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    notify: integer('notify', { mode: 'boolean' }).notNull().default(true),
+    status: text('status', { enum: HEALTH_STATUSES }).notNull().default('UNKNOWN'),
+    intervalSeconds: integer('interval_seconds').notNull().default(60),
+    graceSeconds: integer('grace_seconds').notNull().default(60),
+    lastHeartbeatAt: integer('last_heartbeat_at', { mode: 'timestamp_ms' }),
+    wentDownAt: integer('went_down_at', { mode: 'timestamp_ms' }),
+    lastRecoveredAt: integer('last_recovered_at', { mode: 'timestamp_ms' }),
+    totalDowntimeSeconds: integer('total_downtime_seconds').notNull().default(0),
+    downCount: integer('down_count').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('monitors_service_key_idx').on(t.serviceId, t.key), index('monitors_status_idx').on(t.enabled, t.status)],
+);
+
+/**
+ * One row per outage or monitoring gap (never per heartbeat). Rows older than the retention window are
+ * pruned, except each service's most recent outage, so size stays small and bounded.
+ */
 export const healthEvents = sqliteTable(
   'health_events',
   {
@@ -156,12 +178,16 @@ export const healthEvents = sqliteTable(
     serviceId: text('service_id')
       .notNull()
       .references(() => services.id, { onDelete: 'cascade' }),
-    eventType: text('event_type', { enum: ['OUTAGE'] }).notNull().default('OUTAGE'),
+    monitorId: text('monitor_id')
+      .notNull()
+      .references(() => monitors.id, { onDelete: 'cascade' }),
+    /** OUTAGE: monitor was down. NO_DATA: monitoring off / waiting for the first heartbeat. */
+    eventType: text('event_type', { enum: HEALTH_EVENT_TYPES }).notNull().default('OUTAGE'),
     startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull(),
     endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
     durationSeconds: integer('duration_seconds'),
   },
-  (t) => [index('health_events_service_idx').on(t.serviceId, t.startedAt)],
+  (t) => [index('health_events_service_idx').on(t.serviceId, t.startedAt), index('health_events_monitor_idx').on(t.monitorId, t.startedAt)],
 );
 
 export const auditLogs = sqliteTable(
@@ -192,4 +218,5 @@ export type Destination = typeof destinations.$inferSelect;
 export type Backup = typeof backups.$inferSelect;
 export type ApiCredential = typeof apiCredentials.$inferSelect;
 export type HealthEvent = typeof healthEvents.$inferSelect;
+export type Monitor = typeof monitors.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;

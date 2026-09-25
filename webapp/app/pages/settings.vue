@@ -40,14 +40,16 @@ async function update(patch: Partial<Pick<Me, 'notifyHealth' | 'notifyBackupFail
       <div class="card">
         <dl class="kv">
           <dt>Services</dt>
-          <dd>{{ auth.user.serviceCount }} / {{ auth.user.limits.maxServices }}</dd>
+          <dd>{{ auth.user.serviceCount }} / {{ auth.user.limits.maxServices ?? 'Unlimited' }}</dd>
+          <dt>Monitors per service</dt>
+          <dd>{{ auth.user.limits.maxMonitorsPerService ?? 'Unlimited' }}</dd>
           <dt>Max backup size</dt>
           <dd>{{ formatBytes(auth.user.limits.maxBackupBytes) }}</dd>
           <dt>API requests</dt>
           <dd>{{ auth.user.limits.apiRateLimit }}</dd>
           <dt>Backups</dt>
           <dd>{{ auth.user.limits.backupRateLimit }}</dd>
-          <dt>Heartbeats (per service)</dt>
+          <dt>Heartbeats (per monitor)</dt>
           <dd>{{ auth.user.limits.heartbeatRateLimit }}</dd>
         </dl>
         <div class="hint" style="margin-top: 10px">API and backup limits are shared across all your services.</div>

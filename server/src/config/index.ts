@@ -36,6 +36,7 @@ const envSchema = z.object({
 
   MAX_BACKUP_SIZE_MB: optionalInt(1536),
   MAX_SERVICES_PER_USER: optionalInt(10),
+  MAX_MONITORS_PER_SERVICE: optionalInt(10),
   DEFAULT_API_RATE_LIMIT: z.string().default('60/minute'),
   DEFAULT_BACKUP_RATE_LIMIT: z.string().default('30/hour'),
   DEFAULT_HEARTBEAT_RATE_LIMIT: z.string().default('10/minute'),
@@ -79,6 +80,7 @@ export interface AppConfig {
   defaults: {
     maxBackupSizeMb: number;
     maxServicesPerUser: number;
+    maxMonitorsPerService: number;
     apiRateLimit: string;
     backupRateLimit: string;
     heartbeatRateLimit: string;
@@ -151,6 +153,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     defaults: {
       maxBackupSizeMb: env.MAX_BACKUP_SIZE_MB,
       maxServicesPerUser: env.MAX_SERVICES_PER_USER,
+      maxMonitorsPerService: env.MAX_MONITORS_PER_SERVICE,
       apiRateLimit: env.DEFAULT_API_RATE_LIMIT,
       backupRateLimit: env.DEFAULT_BACKUP_RATE_LIMIT,
       heartbeatRateLimit: env.DEFAULT_HEARTBEAT_RATE_LIMIT,

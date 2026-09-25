@@ -22,8 +22,8 @@ export interface EffectiveLimits {
  *
  * API and backup limits are enforced per *user* (aggregated over all of the user's services), so
  * creating more services never increases a user's quota. A per-service override adds an extra
- * bucket for that service. Heartbeats are limited per service (their volume is bounded by the
- * per-user service cap). A service has exactly one active credential, so service-level buckets
+ * bucket for that service. Heartbeats are limited per monitor (their volume is bounded by the
+ * per-user service cap and the per-service monitor cap). A service has exactly one active credential, so service-level buckets
  * double as credential-level buckets (and survive token rotation).
  */
 export class LimitsService {
@@ -48,14 +48,15 @@ export class LimitsService {
   }
 
   /** Bucket checks for a service-authenticated API request. */
-  serviceApiChecks(user: User, service: Service, category: LimitCategory): RateLimitCheck[] {
+  serviceApiChecks(user: User, service: Service, category: LimitCategory, monitorKey = 'default'): RateLimitCheck[] {
     const limits = this.forUser(user, service);
     const perMinute = (s: string) => parseRateLimit(s, 'minute');
     const perHour = (s: string) => parseRateLimit(s, 'hour');
     const checks: RateLimitCheck[] = [];
 
     if (category === 'heartbeat') {
-      checks.push({ key: `service:${service.id}:heartbeat`, limit: perMinute(limits.heartbeatRateLimit) });
+      // Each monitor has its own bucket; the number of monitors per service is capped.
+      checks.push({ key: `service:${service.id}:heartbeat:${monitorKey}`, limit: perMinute(limits.heartbeatRateLimit) });
       return checks;
     }
 

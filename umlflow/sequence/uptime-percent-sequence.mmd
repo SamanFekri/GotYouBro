@@ -4,10 +4,3 @@
 sequenceDiagram
   title Uptime Percent Sequence
   autonumber
-  actor actor_user as User
-  participant routes_server_src_api_v1_app as routes
-  rect rgb(245, 245, 245)
-    Note over actor_user: Calculate service uptime percentage
-    actor_user->>routes_server_src_api_v1_app: uptimePercent
-    routes_server_src_api_v1_app-->>actor_user: response
-  end
