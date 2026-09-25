@@ -35,6 +35,54 @@ async function saveLimits() {
   }
 }
 
+interface SelfBackupStatus {
+  enabled: boolean;
+  intervalHours: number;
+  intervals: number[];
+  recipientTelegramId: number | null;
+  recipientName: string | null;
+  lastRunAt: string | null;
+  lastStatus: 'SUCCESS' | 'FAILED' | null;
+  lastError: string | null;
+  lastSizeBytes: number | null;
+  lastParts: number | null;
+  nextRunAt: string | null;
+  running: boolean;
+}
+
+const intervalLabel = (h: number) => (h === 168 ? 'Every 7 days' : h === 24 ? 'Every day' : h === 1 ? 'Every hour' : `Every ${h} hours`);
+const selfBackup = ref<SelfBackupStatus>();
+const selfForm = reactive({ enabled: false, intervalHours: 24 });
+const selfBusy = ref(false);
+function applySelfBackup(s: SelfBackupStatus) {
+  selfBackup.value = s;
+  selfForm.enabled = s.enabled;
+  selfForm.intervalHours = s.intervalHours;
+}
+onMounted(async () => applySelfBackup(await api.get<SelfBackupStatus>('/admin/self-backup')));
+
+async function saveSelfBackup() {
+  try {
+    applySelfBackup(await api.put<SelfBackupStatus>('/admin/self-backup', { ...selfForm }));
+    toast.success(selfForm.enabled ? 'Database backups scheduled' : 'Database backup schedule saved (off)');
+  } catch (err) {
+    toast.error((err as Error).message);
+  }
+}
+
+async function runSelfBackup() {
+  selfBusy.value = true;
+  try {
+    applySelfBackup(await api.post<SelfBackupStatus>('/admin/self-backup/run'));
+    toast.success('Database backup sent to your Telegram chat');
+  } catch (err) {
+    toast.error((err as Error).message);
+    applySelfBackup(await api.get<SelfBackupStatus>('/admin/self-backup'));
+  } finally {
+    selfBusy.value = false;
+  }
+}
+
 async function resetLimits() {
   const res = await api.del<{ limits: DefaultLimits }>('/admin/settings/limits');
   Object.assign(limits, res.limits);
@@ -75,6 +123,40 @@ async function resetLimits() {
         <StatCard label="Uptime" :value="formatDuration(stats.uptimeSeconds)" />
       </div>
     </template>
+
+    <div class="section-label">GotYouBro database backup</div>
+    <form class="card form" @submit.prevent="saveSelfBackup">
+      <div class="hint">
+        GotYouBro sends a gzipped snapshot of its own database to your private chat with the bot. Nothing is kept on the server.
+        The snapshot contains <b>all</b> users, services and settings, so keep that chat private.
+      </div>
+      <label class="switch">Send automatically <input v-model="selfForm.enabled" type="checkbox" /></label>
+      <label class="field">
+        <span>Schedule</span>
+        <select v-model.number="selfForm.intervalHours" class="input">
+          <option v-for="h in selfBackup?.intervals ?? [1, 6, 12, 24, 168]" :key="h" :value="h">{{ intervalLabel(h) }}</option>
+        </select>
+      </label>
+      <div v-if="selfBackup" class="hint">
+        <div v-if="selfBackup.recipientName">Recipient: {{ selfBackup.recipientName }} <span class="muted">(whoever saves this form)</span></div>
+        <div v-if="selfBackup.nextRunAt">Next: {{ formatDate(selfBackup.nextRunAt) }}</div>
+        <div v-if="selfBackup.lastRunAt">
+          Last: {{ timeAgo(selfBackup.lastRunAt) }} ·
+          <span class="badge" :class="selfBackup.lastStatus === 'SUCCESS' ? 'ok' : 'bad'">{{ selfBackup.lastStatus === 'SUCCESS' ? 'sent' : 'failed' }}</span>
+          <template v-if="selfBackup.lastStatus === 'SUCCESS' && selfBackup.lastSizeBytes !== null">
+            · {{ formatBytes(selfBackup.lastSizeBytes) }}<template v-if="(selfBackup.lastParts ?? 1) > 1"> in {{ selfBackup.lastParts }} parts</template>
+          </template>
+        </div>
+        <div v-if="selfBackup.lastStatus === 'FAILED' && selfBackup.lastError" class="alert">{{ selfBackup.lastError }}</div>
+      </div>
+      <div class="row">
+        <button class="btn">Save schedule</button>
+        <button type="button" class="btn secondary" :disabled="selfBusy || !selfBackup?.recipientTelegramId" @click="runSelfBackup">
+          {{ selfBusy ? 'Sending…' : 'Back up now' }}
+        </button>
+      </div>
+      <div v-if="!selfBackup?.recipientTelegramId" class="hint">Save the schedule once before using “Back up now”. Make sure you have started a chat with the bot.</div>
+    </form>
 
     <div class="section-label">Default limits</div>
     <form class="card form" @submit.prevent="saveLimits">

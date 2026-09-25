@@ -55,6 +55,7 @@ async function main() {
 
   ctx.limiter.startSweeping();
   ctx.healthMonitor.start();
+  ctx.selfBackupScheduler.start();
 
   if (bot && config.telegram.botEnabled) {
     registerBot(bot, ctx);
@@ -75,6 +76,7 @@ async function main() {
     try {
       bot?.stop(signal);
       ctx.healthMonitor.stop();
+      ctx.selfBackupScheduler.stop();
       ctx.limiter.stopSweeping();
       await app.close();
       await ctx.backupQueue.onIdle();

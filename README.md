@@ -288,6 +288,19 @@ The user whose Telegram ID matches `ADMIN_TELEGRAM_ID` is the **root admin**. Th
 - Backup activity across all users
 - An audit log of admin and security actions: blocks, limit changes, token create/rotate/revoke, service deletion
 - The root admin can promote other users to admin
+- **GotYouBro's own database backup** (see below)
+
+### Backing up GotYouBro itself
+
+GotYouBro can send a backup of its own database to you in Telegram. In **Admin panel → GotYouBro database backup**, turn on *Send automatically*, pick a schedule (every hour, 6 hours, 12 hours, day or 7 days) and press **Save schedule**. **Back up now** sends one immediately.
+
+- Backups go to the private chat with the bot of the admin who last saved the schedule. Start a chat with the bot first.
+- The snapshot uses SQLite's online backup API, so it is consistent while GotYouBro keeps running. It is gzipped and sent as `gotyoubro-<UTC time>.sqlite.gz`. If it is larger than the Telegram file limit, it is split into `.partNNN` files.
+- Temporary files are deleted right after sending; nothing is kept on the server.
+- If a backup fails, you get a Telegram message, and the admin panel shows the error.
+- The file contains **all** data: users, services, settings and token hashes (not the tokens themselves). Keep that chat private.
+
+To restore: stop GotYouBro, join the parts if there are several (`cat gotyoubro-….sqlite.gz.part* > gotyoubro.sqlite.gz`), then run `gunzip -c gotyoubro-….sqlite.gz > data/gotyoubro.db` and start it again.
 
 ---
 

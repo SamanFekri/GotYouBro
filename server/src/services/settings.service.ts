@@ -65,6 +65,19 @@ export class SettingsService {
     return next;
   }
 
+  /** Read a JSON setting (uncached; for small, rarely read values). */
+  getValue<T>(key: string): T | undefined {
+    return this.db.select().from(settings).where(eq(settings.key, key)).get()?.value as T | undefined;
+  }
+
+  setValue(key: string, value: unknown): void {
+    this.db
+      .insert(settings)
+      .values({ key, value })
+      .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } })
+      .run();
+  }
+
   resetDefaultLimits(): DefaultLimits {
     this.db.delete(settings).where(eq(settings.key, LIMITS_KEY)).run();
     this.cached = undefined;

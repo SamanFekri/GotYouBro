@@ -11,6 +11,7 @@ import { HealthService } from './services/health.service.js';
 import { MonitorsService } from './services/monitors.service.js';
 import type { BackupDestinationProvider, NotificationProvider } from './services/providers.js';
 import { ServicesService } from './services/services.service.js';
+import { SelfBackupService } from './services/self-backup.service.js';
 import { SettingsService } from './services/settings.service.js';
 import { StatsService } from './services/stats.service.js';
 import { UsersService } from './services/users.service.js';
@@ -19,6 +20,7 @@ import { TelegramBackupDestination } from './telegram/telegram-backup-destinatio
 import { TelegramNotificationProvider } from './telegram/telegram-notification-provider.js';
 import { BackupQueue } from './workers/backup-queue.js';
 import { HealthMonitor } from './workers/health-monitor.js';
+import { SelfBackupScheduler } from './workers/self-backup-scheduler.js';
 
 export interface ContextDeps {
   config: AppConfig;
@@ -51,6 +53,8 @@ export function createContext(deps: ContextDeps) {
   const stats = new StatsService(db);
   const backupQueue = new BackupQueue(backups, config.backupConcurrency, logger.child({ module: 'queue' }));
   const healthMonitor = new HealthMonitor(health, config.healthCheckIntervalSeconds, logger.child({ module: 'monitor' }));
+  const selfBackup = new SelfBackupService(db, config, settings, telegram, logger.child({ module: 'self-backup' }), deps.now);
+  const selfBackupScheduler = new SelfBackupScheduler(selfBackup, logger.child({ module: 'self-backup' }));
 
   return {
     config,
@@ -72,6 +76,8 @@ export function createContext(deps: ContextDeps) {
     stats,
     backupQueue,
     healthMonitor,
+    selfBackup,
+    selfBackupScheduler,
   };
 }
 

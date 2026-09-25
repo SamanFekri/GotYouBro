@@ -7,6 +7,7 @@ import { AppError } from '../../../lib/errors.js';
 import { idParam, ok, pagination, parse } from '../../../lib/http.js';
 import { isValidRateLimit } from '../../../rate-limit/rate-limit.js';
 import { defaultLimitsSchema } from '../../../services/settings.service.js';
+import { selfBackupConfigSchema } from '../../../services/self-backup.service.js';
 
 const rateLimitOverride = z
   .string()
@@ -180,6 +181,27 @@ export async function adminRoutes(app: FastifyInstance, { ctx }: { ctx: AppConte
     const limits = ctx.settings.resetDefaultLimits();
     ctx.audit.log({ actorUserId: currentUser(request).id, action: 'settings.limits.reset', ip: request.ip });
     return ok(reply, { limits, envDefaults: ctx.settings.envDefaults() });
+  });
+
+  // ---------------------------------------------------------------- GotYouBro's own database backup
+
+  app.get('/self-backup', async (_request, reply) => ok(reply, ctx.selfBackup.status()));
+
+  /** Save the schedule; the admin saving it receives the backups in their private chat. */
+  app.put('/self-backup', async (request, reply) => {
+    const body = parse(selfBackupConfigSchema.strict(), request.body);
+    const actor = currentUser(request);
+    const status = ctx.selfBackup.configure(actor, body);
+    ctx.audit.log({ actorUserId: actor.id, action: 'self-backup.configure', metadata: body, ip: request.ip });
+    return ok(reply, status);
+  });
+
+  app.post('/self-backup/run', async (request, reply) => {
+    const actor = currentUser(request);
+    ctx.audit.log({ actorUserId: actor.id, action: 'self-backup.run', ip: request.ip });
+    const result = await ctx.selfBackup.run('manual');
+    if (result.lastStatus === 'FAILED') throw new AppError('TELEGRAM_DELIVERY_FAILED', result.lastError ?? 'Database backup failed', { status: ctx.selfBackup.status() });
+    return ok(reply, ctx.selfBackup.status());
   });
 
   app.get('/audit-logs', async (request, reply) => {
