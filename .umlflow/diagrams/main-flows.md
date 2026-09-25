@@ -21,12 +21,12 @@ sequenceDiagram
   participant ext_node_path as ☁ node:path
   participant ids as ids
   rect rgb(245, 245, 245)
-    Note over actor_user: Flow: Me View
+    Note over actor_user: Flow: Build signed-in user profile and limits
     actor_user->>routes_server_src_api_v1_app: meView
     routes_server_src_api_v1_app-->>actor_user: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_user: Flow: Uptime Percent
+    Note over actor_user: Flow: Calculate service uptime percentage
     actor_user->>routes_server_src_api_v1_app: uptimePercent
     routes_server_src_api_v1_app-->>actor_user: response
   end
@@ -61,49 +61,38 @@ sequenceDiagram
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_external_system: Flow: Read Idempotency Key
+    Note over actor_external_system: Flow: Validate Idempotency-Key header
     actor_external_system->>routes_server_src_api_v1_backups: readIdempotencyKey
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_external_system: Flow: Assert Content Length
+    Note over actor_external_system: Flow: Reject oversized upload by Content-Length
     actor_external_system->>routes_server_src_api_v1_backups: assertContentLength
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_external_system: Flow: File Too Large
+    Note over actor_external_system: Flow: Build file-too-large error
     actor_external_system->>routes_server_src_api_v1_backups: fileTooLarge
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_external_system: Flow: Write Limited
+    Note over actor_external_system: Flow: Stream upload to temp file with size limit
     actor_external_system->>routes_server_src_api_v1_backups: writeLimited
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_external_system: Flow: Safe Decode
+    Note over actor_external_system: Flow: Decode uploaded file name
     actor_external_system->>routes_server_src_api_v1_backups: safeDecode
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
   rect rgb(245, 245, 245)
-    Note over actor_external_system: Flow: With Timeout
+    Note over actor_external_system: Flow: Wait for delivery with timeout
     actor_external_system->>routes_server_src_api_v1_backups: withTimeout
     routes_server_src_api_v1_backups-->>actor_external_system: response
   end
   %% UMLFLOW MANUAL BEGIN
   %% UMLFLOW MANUAL END
 ```
-
-**Analysis notes**
-
-- ≈ Uncertain name: Me View — named by heuristic from routes@server/src/api/v1/app.meView; confirm with `umlflow semantic questions --kind flow-name`
-- ≈ Uncertain name: Uptime Percent — named by heuristic from routes@server/src/api/v1/app.uptimePercent; confirm with `umlflow semantic questions --kind flow-name`
-- ≈ Uncertain name: Read Idempotency Key — named by heuristic from routes@server/src/api/v1/backups.readIdempotencyKey; confirm with `umlflow semantic questions --kind flow-name`
-- ≈ Uncertain name: Assert Content Length — named by heuristic from routes@server/src/api/v1/backups.assertContentLength; confirm with `umlflow semantic questions --kind flow-name`
-- ≈ Uncertain name: File Too Large — named by heuristic from routes@server/src/api/v1/backups.fileTooLarge; confirm with `umlflow semantic questions --kind flow-name`
-- ≈ Uncertain name: Write Limited — named by heuristic from routes@server/src/api/v1/backups.writeLimited; confirm with `umlflow semantic questions --kind flow-name`
-- ≈ Uncertain name: Safe Decode — named by heuristic from routes@server/src/api/v1/backups.safeDecode; confirm with `umlflow semantic questions --kind flow-name`
-- ≈ Uncertain name: With Timeout — named by heuristic from routes@server/src/api/v1/backups.withTimeout; confirm with `umlflow semantic questions --kind flow-name`
 <!-- UMLFLOW GENERATED END -->
 
 <!-- UMLFLOW MANUAL BEGIN — your notes below are preserved -->

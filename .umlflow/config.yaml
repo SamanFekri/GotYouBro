@@ -34,3 +34,63 @@ diagrams:
   database-erd:
     type: erd
     description: Database entities and their relationships
+  me-view-sequence:
+    type: sequence
+    description: Execution path for the "Me View" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/app.meView
+  uptime-percent-sequence:
+    type: sequence
+    description: Execution path for the "Uptime Percent" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/app.uptimePercent
+  handle-upload-sequence:
+    type: sequence
+    description: Execution path for the "Handle Upload" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.handleUpload
+  respond-with-backup-sequence:
+    type: sequence
+    description: Execution path for the "Respond With Backup" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.respondWithBackup
+  read-idempotency-key-sequence:
+    type: sequence
+    description: Execution path for the "Read Idempotency Key" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.readIdempotencyKey
+  assert-content-length-sequence:
+    type: sequence
+    description: Execution path for the "Assert Content Length" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.assertContentLength
+  file-too-large-sequence:
+    type: sequence
+    description: Execution path for the "File Too Large" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.fileTooLarge
+  write-limited-sequence:
+    type: sequence
+    description: Execution path for the "Write Limited" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.writeLimited
+  safe-decode-sequence:
+    type: sequence
+    description: Execution path for the "Safe Decode" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.safeDecode
+  with-timeout-sequence:
+    type: sequence
+    description: Execution path for the "With Timeout" scenario
+    scope:
+      entryPoints:
+        - routes@server/src/api/v1/backups.withTimeout

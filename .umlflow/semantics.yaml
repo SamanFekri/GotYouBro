@@ -43,4 +43,28 @@ operations:
   routes@server/src/api/v1/backups.respondWithBackup:
     flow: Return backup status to client
     source: semantic-inference
+  routes@server/src/api/v1/app.meView:
+    flow: Build signed-in user profile and limits
+    source: semantic-inference
+  routes@server/src/api/v1/app.uptimePercent:
+    flow: Calculate service uptime percentage
+    source: semantic-inference
+  routes@server/src/api/v1/backups.readIdempotencyKey:
+    flow: Validate Idempotency-Key header
+    source: semantic-inference
+  routes@server/src/api/v1/backups.assertContentLength:
+    flow: Reject oversized upload by Content-Length
+    source: semantic-inference
+  routes@server/src/api/v1/backups.fileTooLarge:
+    flow: Build file-too-large error
+    source: semantic-inference
+  routes@server/src/api/v1/backups.writeLimited:
+    flow: Stream upload to temp file with size limit
+    source: semantic-inference
+  routes@server/src/api/v1/backups.safeDecode:
+    flow: Decode uploaded file name
+    source: semantic-inference
+  routes@server/src/api/v1/backups.withTimeout:
+    flow: Wait for delivery with timeout
+    source: semantic-inference
 entities: {}
