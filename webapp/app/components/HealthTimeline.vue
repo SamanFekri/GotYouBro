@@ -47,7 +47,7 @@ const buckets = computed<Bucket[]>(() => {
 const BAR_W = 8;
 const GAP = 2;
 const HEIGHT = 32;
-const barHeight: Record<State, number> = { down: HEIGHT, up: 20, none: 4 };
+const barHeight: Record<State, number> = { up: HEIGHT, down: 16, none: 4 };
 const width = computed(() => buckets.value.length * (BAR_W + GAP) - GAP);
 
 const active = ref<number | null>(null);
@@ -173,11 +173,11 @@ const summaryLabel = computed(() => {
   border-radius: 1.5px;
 }
 .swatch.up {
-  height: 9px;
+  height: 13px;
   background: var(--status-good);
 }
 .swatch.down {
-  height: 13px;
+  height: 7px;
   background: var(--status-critical);
 }
 .swatch.none {

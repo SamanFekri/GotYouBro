@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { Monitor } from '~/utils/types';
 
-/** One health monitor: state, 7-day history and (when editable) its settings. */
-const props = defineProps<{ monitor: Monitor; editable?: boolean }>();
+/**
+ * One health monitor: state, 7-day history and (when editable) its settings.
+ * `compact` renders it as a row inside a shared service card instead of its own card.
+ */
+const props = defineProps<{ monitor: Monitor; editable?: boolean; compact?: boolean }>();
 const emit = defineEmits<{ changed: [] }>();
 
 const api = useApi();
@@ -55,7 +58,7 @@ const h = computed(() => props.monitor.history);
 </script>
 
 <template>
-  <div class="card monitor">
+  <div class="monitor" :class="compact ? 'compact' : 'card'">
     <div class="spread">
       <div style="min-width: 0">
         <div class="title">{{ monitor.name }}</div>
@@ -69,7 +72,14 @@ const h = computed(() => props.monitor.history);
 
     <template v-if="h">
       <HealthTimeline :history="h" />
-      <dl class="kv">
+      <div v-if="compact" class="hint">
+        {{ h.uptimePercent === null ? '—' : `${h.uptimePercent}%` }} uptime ·
+        {{ h.outages }} {{ h.outages === 1 ? 'outage' : 'outages' }}<template v-if="h.outages"> ({{ formatDuration(h.downtimeSeconds) }})</template> ·
+        last outage
+        <template v-if="h.lastOutage">{{ h.lastOutage.endedAt ? timeAgo(h.lastOutage.startedAt) : 'ongoing' }}</template>
+        <template v-else>none</template>
+      </div>
+      <dl v-else class="kv">
         <dt>Uptime (7 days)</dt>
         <dd>{{ h.uptimePercent === null ? '—' : `${h.uptimePercent}%` }}</dd>
         <dt>Outages (7 days)</dt>
@@ -115,6 +125,9 @@ const h = computed(() => props.monitor.history);
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.monitor.compact {
+  gap: 8px;
 }
 .title {
   font-weight: 600;

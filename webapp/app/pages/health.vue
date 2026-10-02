@@ -32,12 +32,12 @@ const withoutMonitors = computed(() => data.value?.services.filter((s) => !s.mon
         text="Open a service and add a monitor. Then send heartbeats to POST /api/v1/health/heartbeat/<key>."
       />
 
-      <section v-for="s in withMonitors" :key="s.id" class="service">
-        <NuxtLink :to="`/services/${s.id}`" class="spread section-label service-head">
-          <span>{{ s.name }}</span>
+      <section v-for="s in withMonitors" :key="s.id" class="card service">
+        <NuxtLink :to="`/services/${s.id}`" class="spread service-head">
+          <span class="name">{{ s.name }} <span class="muted">· {{ s.monitors.length }} {{ s.monitors.length === 1 ? 'monitor' : 'monitors' }} ›</span></span>
           <StatusBadge :status="s.status === 'ACTIVE' ? (s.healthEnabled ? s.healthStatus : 'OFF') : s.status" />
         </NuxtLink>
-        <MonitorCard v-for="m in s.monitors" :key="m.id" :monitor="m" />
+        <MonitorCard v-for="m in s.monitors" :key="m.id" :monitor="m" compact class="row-item" />
       </section>
 
       <div v-if="withoutMonitors.length" class="hint" style="padding: 0 4px">
@@ -65,9 +65,22 @@ const withoutMonitors = computed(() => data.value?.services.filter((s) => !s.mon
 .service {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 .service-head {
-  color: var(--hint);
+  color: inherit;
+  text-decoration: none;
+}
+.service-head .name {
+  font-weight: 700;
+  font-size: 16px;
+}
+.service-head .muted {
+  font-weight: 400;
+  font-size: 13px;
+}
+.row-item {
+  border-top: 1px solid var(--separator);
+  padding-top: 12px;
 }
 </style>
