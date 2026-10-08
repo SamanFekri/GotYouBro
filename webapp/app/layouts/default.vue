@@ -10,11 +10,11 @@ onMounted(() => {
 });
 
 const tabs = [
-  { to: '/', label: 'Home', icon: '🏠', match: (p: string) => p === '/' },
-  { to: '/services', label: 'Services', icon: '🧩', match: (p: string) => p.startsWith('/services') },
-  { to: '/backups', label: 'Backups', icon: '📦', match: (p: string) => p.startsWith('/backups') },
-  { to: '/health', label: 'Health', icon: '💓', match: (p: string) => p.startsWith('/health') },
-  { to: '/more', label: 'More', icon: '☰', match: (p: string) => ['/more', '/destinations', '/keys', '/settings', '/admin'].some((x) => p.startsWith(x)) },
+  { to: '/', label: 'Home', icon: 'home' as const, match: (p: string) => p === '/' },
+  { to: '/services', label: 'Services', icon: 'services' as const, match: (p: string) => p.startsWith('/services') },
+  { to: '/backups', label: 'Backups', icon: 'package' as const, match: (p: string) => p.startsWith('/backups') },
+  { to: '/health', label: 'Health', icon: 'activity' as const, match: (p: string) => p.startsWith('/health') },
+  { to: '/more', label: 'More', icon: 'menu' as const, match: (p: string) => ['/more', '/destinations', '/keys', '/settings', '/admin'].some((x) => p.startsWith(x)) },
 ];
 </script>
 
@@ -24,7 +24,7 @@ const tabs = [
       <slot />
       <nav class="tabbar">
         <NuxtLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="tab" :class="{ active: tab.match(route.path) }">
-          <span class="icon">{{ tab.icon }}</span>
+          <AppIcon :name="tab.icon" :size="22" :stroke-width="tab.match(route.path) ? 2.25 : 1.75" />
           <span>{{ tab.label }}</span>
         </NuxtLink>
       </nav>
@@ -33,9 +33,9 @@ const tabs = [
     <div v-else class="page gate">
       <img src="/logo.png" alt="GotYouBro" class="gate-logo" width="120" height="120" />
       <div v-if="auth.status === 'idle' || auth.status === 'loading'" class="spinner" />
-      <EmptyState v-else-if="auth.status === 'no-telegram'" emoji="✈️" title="Open GotYouBro from Telegram" text="This Web App signs you in with your Telegram account. Open it from the bot's menu button or send /start to the bot." />
-      <EmptyState v-else-if="auth.status === 'blocked'" emoji="⛔️" title="Account blocked" :text="auth.error" />
-      <EmptyState v-else emoji="⚠️" title="Sign-in failed" :text="auth.error">
+      <EmptyState v-else-if="auth.status === 'no-telegram'" icon="telegram" title="Open GotYouBro from Telegram" text="This Web App signs you in with your Telegram account. Open it from the bot's menu button or send /start to the bot." />
+      <EmptyState v-else-if="auth.status === 'blocked'" icon="blocked" title="Account blocked" :text="auth.error" />
+      <EmptyState v-else icon="warning" title="Sign-in failed" :text="auth.error">
         <button class="btn" @click="auth.login()">Try again</button>
       </EmptyState>
     </div>
@@ -76,17 +76,17 @@ const tabs = [
   flex: 1;
   padding: 2px 0;
 }
-.tab .icon {
-  font-size: 20px;
-  filter: grayscale(1);
-  opacity: 0.7;
+.tab {
+  transition: color 150ms ease;
+}
+.tab:active .app-icon {
+  transform: scale(0.92);
+}
+.tab .app-icon {
+  transition: transform 120ms ease-out;
 }
 .tab.active {
   color: var(--accent);
-}
-.tab.active .icon {
-  filter: none;
-  opacity: 1;
 }
 .toasts {
   position: fixed;

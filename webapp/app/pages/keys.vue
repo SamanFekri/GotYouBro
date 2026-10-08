@@ -40,7 +40,7 @@ async function revoke(s: Service) {
 
     <div v-if="loading && !services" class="spinner" />
     <div v-else-if="error" class="alert">{{ error }}</div>
-    <EmptyState v-else-if="!services?.length" emoji="🔑" title="No services" text="Create a service to get an API token.">
+    <EmptyState v-else-if="!services?.length" icon="key" title="No services" text="Create a service to get an API token.">
       <NuxtLink class="btn" to="/services?new=1">Create a service</NuxtLink>
     </EmptyState>
     <div v-else class="list">

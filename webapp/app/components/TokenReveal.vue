@@ -21,8 +21,9 @@ const curlHeartbeat = computed(() => `curl -X POST ${origin}/api/v1/health/heart
 <template>
   <AppModal :open="!!token" title="Your API token" @close="emit('close')">
     <div class="form">
-      <div class="alert info">
-        ⚠️ Copy this token now{{ serviceName ? ` for “${serviceName}”` : '' }}. It is stored hashed and <b>won’t be shown again</b>.
+      <div class="alert info with-icon">
+        <AppIcon name="warning" :size="18" />
+        <div>Copy this token now{{ serviceName ? ` for “${serviceName}”` : '' }}. It is stored hashed and <b>won’t be shown again</b>.</div>
       </div>
       <div class="token mono" @click="copy(token!)">{{ token }}</div>
       <button class="btn block" @click="copy(token!)">Copy token</button>

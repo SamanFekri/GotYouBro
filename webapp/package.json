@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pinia/nuxt": "^1.0.2",
+    "lucide-vue-next": "^1.0.0",
     "nuxt": "^4.5.2",
     "pinia": "^4.0.3"
   },

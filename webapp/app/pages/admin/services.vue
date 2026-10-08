@@ -88,7 +88,7 @@ async function saveOverrides() {
           </div>
         </div>
         <StatusBadge :status="s.status" />
-        <button class="btn ghost" aria-label="Limits" @click="edit(s)">⚙️</button>
+        <button class="btn ghost icon-btn" aria-label="Limits" @click="edit(s)"><AppIcon name="sliders" :size="18" /></button>
         <button v-if="s.status === 'SUSPENDED'" class="btn small secondary" @click="setStatus(s, 'ACTIVE')">Enable</button>
         <button v-else class="btn small danger" @click="setStatus(s, 'SUSPENDED')">Suspend</button>
       </div>

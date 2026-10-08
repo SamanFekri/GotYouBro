@@ -64,7 +64,7 @@ const h = computed(() => props.monitor.history);
         <div class="title">{{ monitor.name }}</div>
         <div class="hint">
           <span class="mono">{{ monitor.key }}</span> · every {{ formatDuration(monitor.intervalSeconds) }} + {{ formatDuration(monitor.graceSeconds) }} grace ·
-          ♥ {{ timeAgo(monitor.lastHeartbeatAt) }}
+          <span class="inline-icon"><AppIcon name="heartbeat" :size="13" />{{ timeAgo(monitor.lastHeartbeatAt) }}</span>
         </div>
       </div>
       <StatusBadge :status="status" />

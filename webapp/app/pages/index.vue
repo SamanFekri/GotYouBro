@@ -14,7 +14,7 @@ const { data, loading, error } = useLoader(() =>
     <div class="page-header" style="justify-content: flex-start; gap: 12px">
       <img src="/logo.png" alt="GotYouBro" width="56" height="56" />
       <div>
-        <h1>Hey {{ auth.user?.firstName ?? 'there' }} 👋</h1>
+        <h1>Hey {{ auth.user?.firstName ?? 'there' }}</h1>
         <div class="hint">GotYouBro has your back.</div>
       </div>
     </div>
@@ -22,9 +22,12 @@ const { data, loading, error } = useLoader(() =>
     <div v-if="loading" class="spinner" />
     <div v-else-if="error" class="alert">{{ error }}</div>
     <template v-else-if="data">
-      <div v-for="s in data.downServices" :key="s.id" class="alert">
-        🚨 <b>{{ s.name }}</b> is down since {{ timeAgo(s.wentDownAt) }}.
-        <NuxtLink :to="`/services/${s.id}`">Details</NuxtLink>
+      <div v-for="s in data.downServices" :key="s.id" class="alert with-icon">
+        <AppIcon name="alert" :size="18" />
+        <div>
+          <b>{{ s.name }}</b> is down since {{ timeAgo(s.wentDownAt) }}.
+          <NuxtLink :to="`/services/${s.id}`">Details</NuxtLink>
+        </div>
       </div>
 
       <div class="grid">
@@ -36,7 +39,7 @@ const { data, loading, error } = useLoader(() =>
         <StatCard label="Delivered" :value="formatBytes(data.stats.recentBackupBytes)" />
       </div>
 
-      <EmptyState v-if="!data.stats.totalServices" emoji="🧩" title="No services yet" text="Create a service to get an API token for backups and heartbeats.">
+      <EmptyState v-if="!data.stats.totalServices" icon="services" title="No services yet" text="Create a service to get an API token for backups and heartbeats.">
         <NuxtLink class="btn" to="/services?new=1">Create a service</NuxtLink>
       </EmptyState>
 

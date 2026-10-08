@@ -13,7 +13,7 @@ watch(
       <div class="sheet" role="dialog" :aria-label="title">
         <div class="spread" style="margin-bottom: 14px">
           <h2>{{ title }}</h2>
-          <button class="btn ghost" aria-label="Close" @click="emit('close')">✕</button>
+          <button class="btn ghost icon-btn" aria-label="Close" @click="emit('close')"><AppIcon name="close" /></button>
         </div>
         <slot />
       </div>

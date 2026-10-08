@@ -27,7 +27,7 @@ const withoutMonitors = computed(() => data.value?.services.filter((s) => !s.mon
     <template v-else-if="data">
       <EmptyState
         v-if="!withMonitors.length"
-        emoji="💓"
+        icon="heartbeat"
         title="No monitors yet"
         text="Open a service and add a monitor. Then send heartbeats to POST /api/v1/health/heartbeat/<key>."
       />

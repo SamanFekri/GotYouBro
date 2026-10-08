@@ -59,7 +59,7 @@ const atLimit = computed(() => (services.value?.length ?? 0) >= (auth.user?.limi
 
     <div v-if="loading" class="spinner" />
     <div v-else-if="error" class="alert">{{ error }}</div>
-    <EmptyState v-else-if="!services?.length" emoji="🧩" title="No services yet" text="A service is an app that sends backups and/or heartbeats. Each has its own API token.">
+    <EmptyState v-else-if="!services?.length" icon="services" title="No services yet" text="A service is an app that sends backups and/or heartbeats. Each has its own API token.">
       <button class="btn" @click="creating = true">Create your first service</button>
     </EmptyState>
     <div v-else class="list">
@@ -68,7 +68,7 @@ const atLimit = computed(() => (services.value?.length ?? 0) >= (auth.user?.limi
           <div class="title">{{ s.name }}</div>
           <div class="sub">
             {{ s.backupCount }} backups · last {{ timeAgo(s.lastBackupAt) }}
-            <template v-if="s.healthEnabled"> · ♥ {{ timeAgo(s.lastHeartbeatAt) }}</template>
+            <template v-if="s.healthEnabled"> · <span class="inline-icon"><AppIcon name="heartbeat" :size="13" />{{ timeAgo(s.lastHeartbeatAt) }}</span></template>
           </div>
         </div>
         <StatusBadge v-if="s.status !== 'ACTIVE'" :status="s.status" />

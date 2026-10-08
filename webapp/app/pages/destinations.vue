@@ -70,10 +70,10 @@ async function addManual() {
           </div>
           <span v-if="d.verified" class="badge ok"><span class="dot" />Verified</span>
           <button v-else class="btn small secondary" :disabled="busy === d.id" @click="verify(d)">Verify</button>
-          <button class="btn ghost" aria-label="Remove" :disabled="busy === d.id" @click="remove(d)">🗑</button>
+          <button class="btn ghost icon-btn" aria-label="Remove" :disabled="busy === d.id" @click="remove(d)"><AppIcon name="trash" :size="18" /></button>
         </div>
       </div>
-      <EmptyState v-else emoji="📬" title="No destinations yet" text="Start with your private chat with the bot.">
+      <EmptyState v-else icon="destination" title="No destinations yet" text="Start with your private chat with the bot.">
         <button class="btn" :disabled="busy === 'private'" @click="addPrivate">Use my private chat</button>
       </EmptyState>
     </template>

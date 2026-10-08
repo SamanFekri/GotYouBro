@@ -50,7 +50,7 @@ onMounted(() => load());
         <span class="hint">{{ timeAgo(e.createdAt) }}</span>
       </div>
     </div>
-    <EmptyState v-if="!loading && !items.length" emoji="📜" title="No audit entries yet" />
+    <EmptyState v-if="!loading && !items.length" icon="scroll" title="No audit entries yet" />
     <div v-if="loading" class="spinner" />
     <button v-else-if="items.length < total" class="btn secondary block" @click="load(true)">Load more</button>
   </div>

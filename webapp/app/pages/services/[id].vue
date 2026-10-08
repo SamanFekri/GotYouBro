@@ -178,7 +178,7 @@ const atMonitorLimit = computed(() => monitorLimit.value !== null && (service.va
       </div>
       <EmptyState
         v-if="!service.monitors.length"
-        emoji="💓"
+        icon="heartbeat"
         title="No monitors yet"
         text="Add a monitor for each part of this service you want to watch (API, worker, cron job…). Each gets its own heartbeat URL."
       />

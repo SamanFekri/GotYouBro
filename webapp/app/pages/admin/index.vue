@@ -98,10 +98,10 @@ async function resetLimits() {
     <h1>Admin</h1>
 
     <div class="list">
-      <NuxtLink to="/admin/users" class="list-item"><span>👥</span><div class="grow title">Users</div><span class="muted">›</span></NuxtLink>
-      <NuxtLink to="/admin/services" class="list-item"><span>🧩</span><div class="grow title">Services</div><span class="muted">›</span></NuxtLink>
-      <NuxtLink to="/admin/backups" class="list-item"><span>📦</span><div class="grow title">Backup activity</div><span class="muted">›</span></NuxtLink>
-      <NuxtLink to="/admin/audit" class="list-item"><span>📜</span><div class="grow title">Audit log</div><span class="muted">›</span></NuxtLink>
+      <NuxtLink to="/admin/users" class="list-item"><span class="list-icon"><AppIcon name="users" :size="18" /></span><div class="grow title">Users</div><AppIcon name="chevron" :size="18" class="chevron" /></NuxtLink>
+      <NuxtLink to="/admin/services" class="list-item"><span class="list-icon"><AppIcon name="services" :size="18" /></span><div class="grow title">Services</div><AppIcon name="chevron" :size="18" class="chevron" /></NuxtLink>
+      <NuxtLink to="/admin/backups" class="list-item"><span class="list-icon"><AppIcon name="package" :size="18" /></span><div class="grow title">Backup activity</div><AppIcon name="chevron" :size="18" class="chevron" /></NuxtLink>
+      <NuxtLink to="/admin/audit" class="list-item"><span class="list-icon"><AppIcon name="scroll" :size="18" /></span><div class="grow title">Audit log</div><AppIcon name="chevron" :size="18" class="chevron" /></NuxtLink>
     </div>
 
     <div v-if="loading" class="spinner" />

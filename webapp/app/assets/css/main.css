@@ -381,9 +381,53 @@ textarea.input {
   padding: 28px 16px;
   color: var(--hint);
 }
-.empty .emoji {
-  font-size: 34px;
-  margin-bottom: 6px;
+.empty-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+/* Leading icon tile in navigation lists (More, Admin). */
+.list-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  flex-shrink: 0;
+}
+.list-item .chevron {
+  color: var(--hint);
+  opacity: 0.6;
+}
+
+/* Icon sitting on a line of text (alerts, meta lines). */
+.inline-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: -2px;
+}
+.alert.with-icon {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.alert.with-icon > .app-icon {
+  margin-top: 1px;
+}
+
+/* Icon-only buttons: keep a comfortable tap target. */
+.btn.icon-btn {
+  padding: 8px;
+  line-height: 0;
 }
 
 .spinner {

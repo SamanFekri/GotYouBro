@@ -63,7 +63,7 @@ const statuses: Array<{ value: BackupStatus | ''; label: string }> = [
     </div>
 
     <div v-if="error" class="alert">{{ error }}</div>
-    <EmptyState v-else-if="!loading && !items.length" emoji="📦" title="No backups" text="Backups sent through the API will show up here." />
+    <EmptyState v-else-if="!loading && !items.length" icon="package" title="No backups" text="Backups sent through the API will show up here." />
     <div v-else class="list">
       <div v-for="b in items" :key="b.id" class="list-item" style="align-items: flex-start">
         <div class="grow">
