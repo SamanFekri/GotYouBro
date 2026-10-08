@@ -121,10 +121,14 @@ const activeTab = computed(() => tabs.findIndex((t) => t.match(route.path)));
   color: var(--accent);
 }
 /*
- * Each icon plays its own short animation once, when its tab becomes active.
+ * The active tab's icon loops its own animation: a short motion, then a rest, so the bar
+ * never feels busy. Each cycle is --tab-loop long; the motion sits in its first ~15–25%.
  * Lucide draws with <path>s inside the svg, so :deep() reaches them; transform-box makes
  * each path transform around its own box rather than the whole 24×24 canvas.
  */
+.tabbar {
+  --tab-loop: 2.8s;
+}
 .tab :deep(.app-icon path),
 .tab :deep(.app-icon polyline) {
   transform-box: fill-box;
@@ -133,18 +137,18 @@ const activeTab = computed(() => tabs.findIndex((t) => t.match(route.path)));
 /* Home: hop, then land with a little squash. */
 .tab-home.active .app-icon {
   transform-origin: 50% 100%;
-  animation: home-hop 460ms var(--ease-out);
+  animation: home-hop var(--tab-loop) var(--ease-out) infinite;
 }
 @keyframes home-hop {
   0% { transform: translateY(0) scale(1, 1); }
-  35% { transform: translateY(-4px) scale(0.96, 1.05); }
-  70% { transform: translateY(0) scale(1.08, 0.9); }
-  100% { transform: translateY(0) scale(1, 1); }
+  6% { transform: translateY(-4px) scale(0.96, 1.05); }
+  12% { transform: translateY(0) scale(1.08, 0.9); }
+  17%, 100% { transform: translateY(0) scale(1, 1); }
 }
 
-/* Services: the three boxes drop into the stack one after another (3 paths per box). */
+/* Services: the three boxes drop into the stack one after another, then fade to restack. */
 .tab-services.active :deep(.app-icon path) {
-  animation: box-drop 380ms var(--ease-out) both;
+  animation: box-drop var(--tab-loop) var(--ease-out) infinite both;
 }
 .tab-services.active :deep(.app-icon path:nth-child(n + 4)) {
   animation-delay: 70ms;
@@ -153,39 +157,42 @@ const activeTab = computed(() => tabs.findIndex((t) => t.match(route.path)));
   animation-delay: 140ms;
 }
 @keyframes box-drop {
-  from { transform: translateY(-5px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  0% { transform: translateY(-5px); opacity: 0; }
+  13%, 88% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0; }
 }
 
 /* Backups: the package tips over and settles. */
 .tab-package.active .app-icon {
   transform-origin: 50% 90%;
-  animation: package-tip 480ms var(--ease-out);
+  animation: package-tip var(--tab-loop) var(--ease-out) infinite;
 }
 @keyframes package-tip {
   0% { transform: rotate(0); }
-  30% { transform: rotate(-14deg); }
-  65% { transform: rotate(6deg); }
-  100% { transform: rotate(0); }
+  6% { transform: rotate(-14deg); }
+  12% { transform: rotate(6deg); }
+  18%, 100% { transform: rotate(0); }
 }
 
 /*
- * Health: the pulse line draws itself left → right like a monitor trace. The path (~49 units)
- * starts at the right edge, so a negative offset with an uneven dash/gap reveals it from its end.
+ * Health: the pulse line draws itself left → right like a monitor trace, holds, then runs off.
+ * The path (~49 units) starts at the right edge, so a negative offset with an uneven dash/gap
+ * reveals it from its end; a positive offset erases it in the same direction.
  */
 .tab-activity.active :deep(.app-icon path) {
   stroke-dasharray: 50 60;
-  animation: trace 640ms var(--ease-in-out) both;
+  animation: trace var(--tab-loop) var(--ease-in-out) infinite both;
 }
 @keyframes trace {
-  from { stroke-dashoffset: -50; }
-  to { stroke-dashoffset: 0; }
+  0% { stroke-dashoffset: -50; }
+  25%, 80% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 50; }
 }
 
-/* More: the three lines slide out from the left, staggered. */
+/* More: the three lines slide out from the left, staggered, then tuck back in. */
 .tab-menu.active :deep(.app-icon path) {
   transform-origin: 0 50%;
-  animation: line-grow 340ms var(--ease-out) both;
+  animation: line-grow var(--tab-loop) var(--ease-out) infinite both;
 }
 .tab-menu.active :deep(.app-icon path:nth-child(2)) {
   animation-delay: 50ms;
@@ -194,8 +201,9 @@ const activeTab = computed(() => tabs.findIndex((t) => t.match(route.path)));
   animation-delay: 100ms;
 }
 @keyframes line-grow {
-  from { transform: scaleX(0.3); opacity: 0.3; }
-  to { transform: scaleX(1); opacity: 1; }
+  0% { transform: scaleX(0.3); opacity: 0.3; }
+  12%, 88% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(0.3); opacity: 0.3; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tab.active .app-icon,
