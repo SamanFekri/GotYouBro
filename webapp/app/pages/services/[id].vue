@@ -142,7 +142,7 @@ const atMonitorLimit = computed(() => monitorLimit.value !== null && (service.va
       <div class="card">
         <dl class="kv">
           <dt>Current health</dt>
-          <dd><StatusBadge :status="healthLabel" /></dd>
+          <dd><StatusBadge :status="healthLabel" live /></dd>
           <dt>Last heartbeat</dt>
           <dd>{{ timeAgo(service.lastHeartbeatAt) }}</dd>
           <dt>Last backup</dt>

@@ -72,7 +72,7 @@ const atLimit = computed(() => (services.value?.length ?? 0) >= (auth.user?.limi
           </div>
         </div>
         <StatusBadge v-if="s.status !== 'ACTIVE'" :status="s.status" />
-        <StatusBadge v-else :status="s.healthEnabled ? s.healthStatus : 'OFF'" />
+        <StatusBadge v-else :status="s.healthEnabled ? s.healthStatus : 'OFF'" live :beat="s.lastHeartbeatAt" />
       </NuxtLink>
     </div>
 

@@ -35,7 +35,7 @@ const withoutMonitors = computed(() => data.value?.services.filter((s) => !s.mon
       <section v-for="s in withMonitors" :key="s.id" class="card service">
         <NuxtLink :to="`/services/${s.id}`" class="spread service-head">
           <span class="name">{{ s.name }} <span class="muted">· {{ s.monitors.length }} {{ s.monitors.length === 1 ? 'monitor' : 'monitors' }} ›</span></span>
-          <StatusBadge :status="s.status === 'ACTIVE' ? (s.healthEnabled ? s.healthStatus : 'OFF') : s.status" />
+          <StatusBadge :status="s.status === 'ACTIVE' ? (s.healthEnabled ? s.healthStatus : 'OFF') : s.status" live />
         </NuxtLink>
         <MonitorCard v-for="m in s.monitors" :key="m.id" :monitor="m" compact class="row-item" />
       </section>

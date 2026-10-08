@@ -16,6 +16,7 @@ const tabs = [
   { to: '/health', label: 'Health', icon: 'activity' as const, match: (p: string) => p.startsWith('/health') },
   { to: '/more', label: 'More', icon: 'menu' as const, match: (p: string) => ['/more', '/destinations', '/keys', '/settings', '/admin'].some((x) => p.startsWith(x)) },
 ];
+const activeTab = computed(() => tabs.findIndex((t) => t.match(route.path)));
 </script>
 
 <template>
@@ -23,6 +24,11 @@ const tabs = [
     <div v-if="auth.status === 'ready'">
       <slot />
       <nav class="tabbar">
+        <span
+          class="indicator"
+          :style="{ transform: `translateX(${Math.max(activeTab, 0) * 100}%)`, opacity: activeTab < 0 ? 0 : 1 }"
+          aria-hidden="true"
+        ><span class="pill" /></span>
         <NuxtLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="tab" :class="{ active: tab.match(route.path) }">
           <AppIcon :name="tab.icon" :size="22" :stroke-width="tab.match(route.path) ? 2.25 : 1.75" />
           <span>{{ tab.label }}</span>
@@ -66,15 +72,41 @@ const tabs = [
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   z-index: 10;
 }
+/* One highlight that slides to the active tab (tabs are equal width, so 100% = one tab). */
+.indicator {
+  position: absolute;
+  top: 8px; /* tabbar padding 6 + tab padding 6 + icon 22 → pill centered on the icon */
+  left: 4px;
+  width: calc((100% - 8px) / 5);
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transition:
+    transform 250ms var(--ease-in-out),
+    opacity 150ms ease;
+}
+.pill {
+  width: 56px;
+  height: 100%;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    transition: opacity 150ms ease;
+  }
+}
 .tab {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   font-size: 11px;
   color: var(--hint);
   flex: 1;
-  padding: 2px 0;
+  padding: 6px 0 0;
 }
 .tab {
   transition: color 150ms ease;

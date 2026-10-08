@@ -67,7 +67,7 @@ const h = computed(() => props.monitor.history);
           <span class="inline-icon"><AppIcon name="heartbeat" :size="13" />{{ timeAgo(monitor.lastHeartbeatAt) }}</span>
         </div>
       </div>
-      <StatusBadge :status="status" />
+      <StatusBadge :status="status" live :beat="monitor.lastHeartbeatAt" />
     </div>
 
     <template v-if="h">
