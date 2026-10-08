@@ -29,7 +29,7 @@ const activeTab = computed(() => tabs.findIndex((t) => t.match(route.path)));
           :style="{ transform: `translateX(${Math.max(activeTab, 0) * 100}%)`, opacity: activeTab < 0 ? 0 : 1 }"
           aria-hidden="true"
         ><span class="pill" /></span>
-        <NuxtLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="tab" :class="{ active: tab.match(route.path) }">
+        <NuxtLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="tab" :class="[`tab-${tab.icon}`, { active: tab.match(route.path) }]">
           <AppIcon :name="tab.icon" :size="22" :stroke-width="tab.match(route.path) ? 2.25 : 1.75" />
           <span>{{ tab.label }}</span>
         </NuxtLink>
@@ -119,6 +119,89 @@ const activeTab = computed(() => tabs.findIndex((t) => t.match(route.path)));
 }
 .tab.active {
   color: var(--accent);
+}
+/*
+ * Each icon plays its own short animation once, when its tab becomes active.
+ * Lucide draws with <path>s inside the svg, so :deep() reaches them; transform-box makes
+ * each path transform around its own box rather than the whole 24×24 canvas.
+ */
+.tab :deep(.app-icon path),
+.tab :deep(.app-icon polyline) {
+  transform-box: fill-box;
+}
+
+/* Home: hop, then land with a little squash. */
+.tab-home.active .app-icon {
+  transform-origin: 50% 100%;
+  animation: home-hop 460ms var(--ease-out);
+}
+@keyframes home-hop {
+  0% { transform: translateY(0) scale(1, 1); }
+  35% { transform: translateY(-4px) scale(0.96, 1.05); }
+  70% { transform: translateY(0) scale(1.08, 0.9); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* Services: the three boxes drop into the stack one after another (3 paths per box). */
+.tab-services.active :deep(.app-icon path) {
+  animation: box-drop 380ms var(--ease-out) both;
+}
+.tab-services.active :deep(.app-icon path:nth-child(n + 4)) {
+  animation-delay: 70ms;
+}
+.tab-services.active :deep(.app-icon path:nth-child(n + 7)) {
+  animation-delay: 140ms;
+}
+@keyframes box-drop {
+  from { transform: translateY(-5px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Backups: the package tips over and settles. */
+.tab-package.active .app-icon {
+  transform-origin: 50% 90%;
+  animation: package-tip 480ms var(--ease-out);
+}
+@keyframes package-tip {
+  0% { transform: rotate(0); }
+  30% { transform: rotate(-14deg); }
+  65% { transform: rotate(6deg); }
+  100% { transform: rotate(0); }
+}
+
+/*
+ * Health: the pulse line draws itself left → right like a monitor trace. The path (~49 units)
+ * starts at the right edge, so a negative offset with an uneven dash/gap reveals it from its end.
+ */
+.tab-activity.active :deep(.app-icon path) {
+  stroke-dasharray: 50 60;
+  animation: trace 640ms var(--ease-in-out) both;
+}
+@keyframes trace {
+  from { stroke-dashoffset: -50; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* More: the three lines slide out from the left, staggered. */
+.tab-menu.active :deep(.app-icon path) {
+  transform-origin: 0 50%;
+  animation: line-grow 340ms var(--ease-out) both;
+}
+.tab-menu.active :deep(.app-icon path:nth-child(2)) {
+  animation-delay: 50ms;
+}
+.tab-menu.active :deep(.app-icon path:nth-child(3)) {
+  animation-delay: 100ms;
+}
+@keyframes line-grow {
+  from { transform: scaleX(0.3); opacity: 0.3; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab.active .app-icon,
+  .tab.active :deep(.app-icon path) {
+    animation: none;
+  }
 }
 .toasts {
   position: fixed;
