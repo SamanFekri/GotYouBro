@@ -3,7 +3,9 @@
   --bg: var(--tg-theme-secondary-bg-color, #f1f2f6);
   --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
   --text: var(--tg-theme-text-color, #111418);
-  --hint: var(--tg-theme-hint-color, #6f7883);
+  /* Telegram's hint colors sit near 3:1; blending 25% toward the text color clears 4.5:1 in light
+     and dark themes alike, while still following the user's theme. */
+  --hint: color-mix(in srgb, var(--tg-theme-hint-color, #6f7883) 75%, var(--text));
   --link: var(--tg-theme-link-color, #2481cc);
   --accent: var(--tg-theme-button-color, #2481cc);
   --accent-text: var(--tg-theme-button-text-color, #ffffff);
@@ -11,6 +13,10 @@
   --danger: var(--tg-theme-destructive-text-color, #e53935);
   --ok: #2e9d57;
   --warn: #d98c00;
+  /* Status text on tinted badges: darker than the dot tone so it passes 4.5:1. */
+  --ok-text: #1a6b36;
+  --danger-text: #b3261e;
+  --warn-text: #8a5a00;
   --radius: 14px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -23,8 +29,21 @@
     --bg: #0f1115;
     --surface: #1a1d23;
     --text: #eef0f3;
-    --hint: #8b939e;
+    --hint: #9aa2ad;
     --separator: rgba(255, 255, 255, 0.08);
+  }
+}
+/* Dark status text: outside Telegram via the media query, inside via Telegram's colorScheme. */
+:root[data-scheme='dark'] {
+  --ok-text: #5fd38a;
+  --danger-text: #ff8a80;
+  --warn-text: #f0b54a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.tg) {
+    --ok-text: #5fd38a;
+    --danger-text: #ff8a80;
+    --warn-text: #f0b54a;
   }
 }
 
@@ -32,12 +51,20 @@
   box-sizing: border-box;
 }
 
+/* On iOS this follows the system text-size setting (Dynamic Type); elsewhere it's the browser's
+   default. All font sizes below are rem, so the whole scale grows with it. */
+@supports (font: -apple-system-body) {
+  html {
+    font: -apple-system-body;
+  }
+}
+
 html,
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font: 0.9375rem/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -54,25 +81,25 @@ h3 {
   line-height: 1.2;
 }
 h1 {
-  font-size: 22px;
+  font-size: 1.375rem;
 }
 h2 {
-  font-size: 17px;
+  font-size: 1.0625rem;
 }
 h3 {
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 code,
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .page {
   max-width: 760px;
   margin: 0 auto;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(112px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: var(--gap);
@@ -93,7 +120,7 @@ code,
 }
 
 .card-title {
-  font-size: 13px;
+  font-size: 0.8125rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--hint);
@@ -102,7 +129,7 @@ code,
 }
 
 .section-label {
-  font-size: 13px;
+  font-size: 0.8125rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--hint);
@@ -138,7 +165,7 @@ code,
 }
 .list-item .sub {
   color: var(--hint);
-  font-size: 13px;
+  font-size: 0.8125rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -164,7 +191,7 @@ code,
 }
 .hint {
   color: var(--hint);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .muted {
   color: var(--hint);
@@ -177,7 +204,7 @@ code,
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 6px 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .kv dt {
   color: var(--hint);
@@ -204,8 +231,14 @@ code,
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: opacity 0.15s;
+  min-height: 44px;
+  transition:
+    opacity 150ms ease,
+    transform 160ms var(--ease-out);
   white-space: nowrap;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -225,9 +258,17 @@ code,
   padding: 6px 8px;
 }
 .btn.small {
+  position: relative;
+  min-height: 34px;
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   border-radius: 8px;
+}
+/* Small buttons keep their look but get a 44pt-tall tap area. */
+.btn.small::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
 }
 .btn.block {
   width: 100%;
@@ -237,11 +278,11 @@ code,
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .field > span {
   color: var(--hint);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .input,
 select.input,
@@ -275,7 +316,7 @@ textarea.input {
   justify-content: space-between;
   gap: 12px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .switch input {
   appearance: none;
@@ -318,7 +359,7 @@ textarea.input {
 .chip {
   border: 0;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
   padding: 6px 12px;
   border-radius: 999px;
   background: var(--surface);
@@ -335,7 +376,7 @@ textarea.input {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 999px;
@@ -344,16 +385,19 @@ textarea.input {
   color: var(--hint);
 }
 .badge.ok {
+  --tone: var(--ok);
   background: color-mix(in srgb, var(--ok) 15%, transparent);
-  color: var(--ok);
+  color: var(--ok-text);
 }
 .badge.bad {
-  background: color-mix(in srgb, var(--danger) 15%, transparent);
-  color: var(--danger);
+  --tone: #e53935;
+  background: color-mix(in srgb, #e53935 15%, transparent);
+  color: var(--danger-text);
 }
 .badge.warn {
+  --tone: var(--warn);
   background: color-mix(in srgb, var(--warn) 15%, transparent);
-  color: var(--warn);
+  color: var(--warn-text);
 }
 .badge.info {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
@@ -363,13 +407,13 @@ textarea.input {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--tone, currentColor);
 }
 
 .alert {
   border-radius: var(--radius);
   padding: 12px 14px;
-  font-size: 14px;
+  font-size: 0.875rem;
   background: color-mix(in srgb, var(--danger) 12%, var(--surface));
   color: var(--danger);
 }
@@ -428,7 +472,9 @@ textarea.input {
 
 /* Icon-only buttons: keep a comfortable tap target. */
 .btn.icon-btn {
-  padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
   line-height: 0;
 }
 
@@ -453,13 +499,13 @@ textarea.input {
 table.table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .table th {
   text-align: left;
   color: var(--hint);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 0.75rem;
   padding: 6px 8px;
   white-space: nowrap;
 }
@@ -467,4 +513,29 @@ table.table {
   padding: 8px;
   border-top: 1px solid var(--separator);
   white-space: nowrap;
+}
+
+/* Increase Contrast: solid status fills, stronger secondary text and separators. */
+@media (prefers-contrast: more) {
+  :root {
+    --hint: color-mix(in srgb, var(--tg-theme-hint-color, #6f7883) 45%, var(--text));
+    --separator: color-mix(in srgb, var(--text) 35%, transparent);
+  }
+  .badge.ok,
+  .badge.bad,
+  .badge.warn {
+    color: #fff;
+  }
+  .badge.ok {
+    background: #1a6b36;
+  }
+  .badge.bad {
+    background: #b3261e;
+  }
+  .badge.warn {
+    background: #8a5a00;
+  }
+  .badge .dot {
+    background: #fff;
+  }
 }

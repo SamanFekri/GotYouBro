@@ -48,7 +48,7 @@ async function addManual() {
 <template>
   <div class="page">
     <div class="page-header">
-      <NuxtLink to="/more" class="btn ghost">‹ More</NuxtLink>
+      <NuxtLink to="/more" class="btn ghost">‹ Settings</NuxtLink>
     </div>
     <div class="spread">
       <h1>Destinations</h1>
@@ -79,7 +79,7 @@ async function addManual() {
     </template>
 
     <div class="section-label">How to connect</div>
-    <div class="card" style="font-size: 14px">
+    <div class="card" style="font-size: 0.875rem">
       <p style="margin-top: 0"><b>Private chat:</b> <a href="#" @click.prevent="addPrivate">connect your chat with the bot</a>.</p>
       <p><b>Group:</b> add the bot to the group, then an admin sends <code>/connect</code> in the group.</p>
       <p><b>Group topic:</b> in a forum group, send <code>/connect</code> inside the topic.</p>

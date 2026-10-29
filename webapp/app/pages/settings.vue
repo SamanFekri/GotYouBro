@@ -19,9 +19,9 @@ async function update(patch: Partial<Pick<Me, 'notifyHealth' | 'notifyBackupFail
 <template>
   <div class="page">
     <div class="page-header">
-      <NuxtLink to="/more" class="btn ghost">‹ More</NuxtLink>
+      <NuxtLink to="/more" class="btn ghost">‹ Settings</NuxtLink>
     </div>
-    <h1>Settings</h1>
+    <h1>Account</h1>
 
     <template v-if="auth.user">
       <div class="section-label">Notifications</div>

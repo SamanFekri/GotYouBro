@@ -22,7 +22,13 @@ export const useAuthStore = defineStore('auth', {
       const { initData, webApp } = useTelegram();
       webApp?.ready();
       webApp?.expand();
-      if (webApp) document.documentElement.classList.add('tg');
+      if (webApp) {
+        const root = document.documentElement;
+        root.classList.add('tg');
+        const syncScheme = () => (root.dataset.scheme = webApp.colorScheme);
+        syncScheme();
+        webApp.onEvent?.('themeChanged', syncScheme);
+      }
       if (!initData) {
         this.status = 'no-telegram';
         return false;

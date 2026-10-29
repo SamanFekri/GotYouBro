@@ -15,7 +15,7 @@ defineProps<{ label: string; value: string | number; tone?: 'ok' | 'bad' | 'defa
   color: inherit;
 }
 .value {
-  font-size: 26px;
+  font-size: 1.625rem;
   font-weight: 700;
   line-height: 1.1;
 }
@@ -27,7 +27,7 @@ defineProps<{ label: string; value: string | number; tone?: 'ok' | 'bad' | 'defa
 }
 .label {
   color: var(--hint);
-  font-size: 13px;
+  font-size: 0.8125rem;
   margin-top: 4px;
 }
 </style>

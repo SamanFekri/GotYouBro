@@ -132,7 +132,7 @@ const setServiceStatus = (s: Service, status: 'ACTIVE' | 'SUSPENDED') =>
       <div class="section-label">Recent backups</div>
       <div v-if="data.recentBackups.length" class="list">
         <div v-for="b in data.recentBackups" :key="b.id" class="list-item">
-          <div class="grow"><div class="title">{{ b.filename }}</div><div class="sub">{{ b.serviceName }} · {{ formatBytes(b.sizeBytes) }} · {{ formatDate(b.createdAt) }}</div></div>
+          <div class="grow"><div class="title"><FileName :name="b.filename" /></div><div class="sub">{{ b.serviceName }} · {{ formatBytes(b.sizeBytes) }} · {{ formatDate(b.createdAt) }}</div></div>
           <StatusBadge :status="b.status" />
         </div>
       </div>

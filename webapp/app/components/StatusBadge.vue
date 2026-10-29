@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * `live` marks a badge that shows current health (not a history row). Live badges ping:
- * HEALTHY with a slow, soft heartbeat; DOWN with a faster, stronger ping until it recovers.
- * A new heartbeat (`beat` changes) also restarts the healthy ping so it lands on the update.
+ * `live` marks a badge that shows current health (not a history row).
+ * DOWN pings continuously — the one motion on screen that means "look here".
+ * HEALTHY pings once when a new heartbeat arrives (`beat` changes), never on its own.
  */
 const props = defineProps<{ status: string; kind?: 'health' | 'backup' | 'service'; live?: boolean; beat?: string | null }>();
 
@@ -21,22 +21,30 @@ const map: Record<string, { cls: string; label: string }> = {
 };
 const entry = computed(() => map[props.status] ?? { cls: '', label: props.status });
 
-const pulse = computed(() => (!props.live ? null : props.status === 'DOWN' ? 'alarm' : props.status === 'HEALTHY' ? 'alive' : null));
+const alarm = computed(() => props.live && props.status === 'DOWN');
 const ring = ref<HTMLElement>();
 
-// Restart the heartbeat loop from the top when a fresh heartbeat arrives.
+// One ping per fresh heartbeat. Not on mount: a page of badges pinging together is noise.
 watch(
   () => props.beat,
   (beat, prev) => {
-    if (pulse.value !== 'alive' || !beat || !prev || beat === prev) return;
-    for (const a of ring.value?.getAnimations() ?? []) a.currentTime = 0;
+    if (!props.live || props.status !== 'HEALTHY' || !beat || !prev || beat === prev) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    ring.value?.animate(
+      [
+        { transform: 'scale(1)', opacity: 0.55 },
+        { opacity: 0.35, offset: 0.4 },
+        { transform: 'scale(2.8)', opacity: 0 },
+      ],
+      { duration: 1000, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
+    );
   },
 );
 </script>
 
 <template>
   <span class="badge" :class="entry.cls">
-    <span class="dot" :class="pulse"><span v-if="live" ref="ring" class="ring" /></span>{{ entry.label }}
+    <span class="dot" :class="{ alarm }" aria-hidden="true"><span v-if="live" ref="ring" class="ring" /></span>{{ entry.label }}
   </span>
 </template>
 
@@ -48,32 +56,15 @@ watch(
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--tone, currentColor);
   opacity: 0;
   pointer-events: none;
 }
-/* Ambient state indicators: loops are right here, nothing interrupts them. */
-.alive .ring {
-  animation: alive 2.4s var(--ease-out) infinite;
-}
+/* Down: steady ping until it recovers. Ambient state, so a loop is right; nothing interrupts it. */
 .alarm .ring {
   animation: alarm 1.2s var(--ease-out) infinite;
 }
-/* Scale eases out fast while opacity holds, then fades — the ring stays readable as it grows. */
-@keyframes alive {
-  0% {
-    transform: scale(1);
-    opacity: 0.55;
-  }
-  35% {
-    opacity: 0.35;
-  }
-  70%,
-  100% {
-    transform: scale(2.8);
-    opacity: 0;
-  }
-}
+/* Scale eases out fast while opacity holds, then fades, so the ring stays readable as it grows. */
 @keyframes alarm {
   0% {
     transform: scale(1);
@@ -88,7 +79,7 @@ watch(
     opacity: 0;
   }
 }
-/* Reduced motion: no expanding ring. Down keeps a gentle opacity pulse; healthy stays still. */
+/* Reduced motion: no expanding ring; a gentle opacity pulse still says "needs attention". */
 @media (prefers-reduced-motion: reduce) {
   .ring {
     display: none;

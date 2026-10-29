@@ -71,7 +71,7 @@ const h = computed(() => props.monitor.history);
     </div>
 
     <template v-if="h">
-      <HealthTimeline :history="h" />
+      <HealthTimeline :history="h" :legend="!compact" />
       <div v-if="compact" class="hint">
         {{ h.uptimePercent === null ? '—' : `${h.uptimePercent}%` }} uptime ·
         {{ h.outages }} {{ h.outages === 1 ? 'outage' : 'outages' }}<template v-if="h.outages"> ({{ formatDuration(h.downtimeSeconds) }})</template> ·
@@ -136,12 +136,12 @@ const h = computed(() => props.monitor.history);
   background: var(--bg);
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
   word-break: break-all;
   cursor: pointer;
 }
 .switch.compact {
   gap: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 </style>

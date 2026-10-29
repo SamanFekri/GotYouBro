@@ -9,6 +9,7 @@ interface TelegramWebApp {
   HapticFeedback?: { notificationOccurred(type: 'error' | 'success' | 'warning'): void; impactOccurred(style: 'light' | 'medium'): void };
   BackButton: { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void };
   isVersionAtLeast(version: string): boolean;
+  onEvent?(event: 'themeChanged', cb: () => void): void;
 }
 
 declare global {

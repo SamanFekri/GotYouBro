@@ -33,7 +33,7 @@ async function revoke(s: Service) {
 <template>
   <div class="page">
     <div class="page-header">
-      <NuxtLink to="/more" class="btn ghost">‹ More</NuxtLink>
+      <NuxtLink to="/more" class="btn ghost">‹ Settings</NuxtLink>
     </div>
     <h1>API keys</h1>
     <div class="hint">One token per service. Tokens are stored hashed and shown only when generated.</div>

@@ -32,6 +32,8 @@ const withoutMonitors = computed(() => data.value?.services.filter((s) => !s.mon
         text="Open a service and add a monitor. Then send heartbeats to POST /api/v1/health/heartbeat/<key>."
       />
 
+      <HealthLegend v-if="withMonitors.length" hint class="page-legend" />
+
       <section v-for="s in withMonitors" :key="s.id" class="card service">
         <NuxtLink :to="`/services/${s.id}`" class="spread service-head">
           <span class="name">{{ s.name }} <span class="muted">· {{ s.monitors.length }} {{ s.monitors.length === 1 ? 'monitor' : 'monitors' }} ›</span></span>
@@ -73,11 +75,14 @@ const withoutMonitors = computed(() => data.value?.services.filter((s) => !s.mon
 }
 .service-head .name {
   font-weight: 700;
-  font-size: 16px;
+  font-size: 1rem;
 }
 .service-head .muted {
   font-weight: 400;
-  font-size: 13px;
+  font-size: 0.8125rem;
+}
+.page-legend {
+  padding: 0 4px;
 }
 .row-item {
   border-top: 1px solid var(--separator);

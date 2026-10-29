@@ -6,7 +6,8 @@ import type { HealthHistory } from '~/utils/types';
  * (down = full, up = medium, no data = stub) so it stays readable with red–green colour blindness;
  * a text readout and a labelled legend back it up.
  */
-const props = defineProps<{ history: HealthHistory; bucketHours?: number }>();
+/** `legend: false` when the page shows one shared <HealthLegend> instead of one per chart. */
+const props = withDefaults(defineProps<{ history: HealthHistory; bucketHours?: number; legend?: boolean }>(), { legend: true });
 
 type State = 'up' | 'down' | 'none';
 interface Bucket {
@@ -62,6 +63,18 @@ function describe(b: Bucket) {
   return `${range} · Up`;
 }
 
+// Scrub: a finger (or pointer) anywhere on the strip selects the nearest bar, so tiny bars are
+// still easy to pick, and dragging across reads them out one by one.
+const svgEl = ref<SVGSVGElement>();
+function pick(e: PointerEvent) {
+  const rect = svgEl.value?.getBoundingClientRect();
+  if (!rect || !buckets.value.length) return;
+  const i = Math.floor(((e.clientX - rect.left) / rect.width) * buckets.value.length);
+  active.value = Math.min(buckets.value.length - 1, Math.max(0, i));
+}
+
+const finePointer = import.meta.client && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+const hintText = finePointer ? 'Hover a bar for details' : 'Tap or drag across the bars for details';
 const readout = computed(() => (active.value !== null && buckets.value[active.value] ? describe(buckets.value[active.value]!) : null));
 const summaryLabel = computed(() => {
   const h = props.history;
@@ -79,6 +92,9 @@ const summaryLabel = computed(() => {
         role="img"
         :aria-label="summaryLabel"
         class="bars"
+        ref="svgEl"
+        @pointerdown="pick"
+        @pointermove="pick"
       >
         <rect
           v-for="(b, i) in buckets"
@@ -90,7 +106,7 @@ const summaryLabel = computed(() => {
           rx="1.5"
           :class="['bar', b.state, { active: active === i }]"
         />
-        <!-- Hit targets span the full height, bigger than the marks, for hover and tap. -->
+        <!-- Per-bar titles for hover tooltips and assistive tech; picking is done by pick(). -->
         <rect
           v-for="(b, i) in buckets"
           :key="`hit-${b.start}`"
@@ -99,8 +115,6 @@ const summaryLabel = computed(() => {
           :width="BAR_W + GAP"
           :height="HEIGHT"
           fill="transparent"
-          @pointerenter="active = i"
-          @click="active = i"
         >
           <title>{{ describe(b) }}</title>
         </rect>
@@ -108,13 +122,9 @@ const summaryLabel = computed(() => {
       <div class="axis"><span>7 days ago</span><span>now</span></div>
     </div>
 
-    <div class="readout" aria-live="polite">{{ readout ?? 'Tap or hover a bar for details' }}</div>
+    <div class="readout" :class="{ reserve: legend || readout }" aria-live="polite">{{ readout ?? (legend ? hintText : '') }}</div>
 
-    <div class="legend">
-      <span><i class="swatch up" /> Up</span>
-      <span><i class="swatch down" /> Down</span>
-      <span><i class="swatch none" /> No data</span>
-    </div>
+    <HealthLegend v-if="legend" />
   </div>
 </template>
 
@@ -129,6 +139,7 @@ const summaryLabel = computed(() => {
 }
 .bars {
   display: block;
+  touch-action: pan-y;
   width: 100%;
   height: 32px;
 }
@@ -148,40 +159,15 @@ const summaryLabel = computed(() => {
 .axis {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--hint);
 }
 .readout {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text);
+}
+/* Reserve a line only when there is something to show, so shared-legend rows stay tight. */
+.readout.reserve {
   min-height: 1.4em;
-}
-.legend {
-  display: flex;
-  gap: 14px;
-  font-size: 12px;
-  color: var(--hint);
-}
-.legend span {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 5px;
-}
-.swatch {
-  display: inline-block;
-  width: 6px;
-  border-radius: 1.5px;
-}
-.swatch.up {
-  height: 13px;
-  background: var(--status-good);
-}
-.swatch.down {
-  height: 7px;
-  background: var(--status-critical);
-}
-.swatch.none {
-  height: 3px;
-  background: var(--status-none);
 }
 </style>

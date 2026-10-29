@@ -53,6 +53,6 @@ const curlHeartbeat = computed(() => `curl -X POST ${origin}/api/v1/health/heart
   white-space: pre-wrap;
   word-break: break-all;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 </style>

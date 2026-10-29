@@ -67,7 +67,7 @@ const statuses: Array<{ value: BackupStatus | ''; label: string }> = [
     <div v-else class="list">
       <div v-for="b in items" :key="b.id" class="list-item" style="align-items: flex-start">
         <div class="grow">
-          <div class="title">{{ b.filename }}</div>
+          <div class="title"><FileName :name="b.filename" /></div>
           <div class="sub">{{ b.serviceName }} · {{ formatBytes(b.sizeBytes) }} · {{ formatDate(b.createdAt) }}</div>
           <div class="sub">→ {{ b.destinationName ?? 'deleted destination' }}</div>
           <div v-if="b.errorMessage" class="sub danger-text" style="white-space: normal">{{ b.errorMessage }}</div>

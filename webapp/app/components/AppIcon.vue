@@ -20,12 +20,14 @@ import {
   SlidersHorizontal,
   Trash2,
   TriangleAlert,
+  UserRound,
   Users,
   X,
 } from 'lucide-vue-next';
 
 /** Every icon the app uses, by name — one place to keep the set consistent. */
 const icons = {
+  account: UserRound,
   activity: Activity,
   admin: ShieldCheck,
   alert: CircleAlert,

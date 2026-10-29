@@ -67,7 +67,8 @@ const atLimit = computed(() => (services.value?.length ?? 0) >= (auth.user?.limi
         <div class="grow">
           <div class="title">{{ s.name }}</div>
           <div class="sub">
-            {{ s.backupCount }} backups · last {{ timeAgo(s.lastBackupAt) }}
+            <template v-if="s.lastBackupAt">{{ s.backupCount }} {{ s.backupCount === 1 ? 'backup' : 'backups' }} · last {{ timeAgo(s.lastBackupAt) }}</template>
+            <template v-else>No backups yet</template>
             <template v-if="s.healthEnabled"> · <span class="inline-icon"><AppIcon name="heartbeat" :size="13" />{{ timeAgo(s.lastHeartbeatAt) }}</span></template>
           </div>
         </div>

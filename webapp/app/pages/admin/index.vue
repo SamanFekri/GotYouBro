@@ -93,7 +93,7 @@ async function resetLimits() {
 <template>
   <div class="page">
     <div class="page-header">
-      <NuxtLink to="/more" class="btn ghost">‹ More</NuxtLink>
+      <NuxtLink to="/more" class="btn ghost">‹ Settings</NuxtLink>
     </div>
     <h1>Admin</h1>
 

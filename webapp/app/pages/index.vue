@@ -3,6 +3,7 @@ import { useAuthStore } from '~/stores/auth';
 import type { Backup, DashboardStats, Service } from '~/utils/types';
 
 const auth = useAuthStore();
+const downFor = (since: string | null) => (since ? formatDuration(Math.max(60, (Date.now() - new Date(since).getTime()) / 1000)) : 'a while');
 const api = useApi();
 const { data, loading, error } = useLoader(() =>
   api.get<{ stats: DashboardStats; recentBackups: Backup[]; downServices: Service[] }>('/app/dashboard'),
@@ -15,7 +16,6 @@ const { data, loading, error } = useLoader(() =>
       <img src="/logo.png" alt="GotYouBro" width="56" height="56" />
       <div>
         <h1>Hey {{ auth.user?.firstName ?? 'there' }}</h1>
-        <div class="hint">GotYouBro has your back.</div>
       </div>
     </div>
 
@@ -25,7 +25,7 @@ const { data, loading, error } = useLoader(() =>
       <div v-for="s in data.downServices" :key="s.id" class="alert with-icon">
         <AppIcon name="alert" :size="18" />
         <div>
-          <b>{{ s.name }}</b> is down since {{ timeAgo(s.wentDownAt) }}.
+          <b>{{ s.name }}</b> has been down for {{ downFor(s.wentDownAt) }}.
           <NuxtLink :to="`/services/${s.id}`">Details</NuxtLink>
         </div>
       </div>
@@ -40,7 +40,10 @@ const { data, loading, error } = useLoader(() =>
       </div>
 
       <EmptyState v-if="!data.stats.totalServices" icon="services" title="No services yet" text="Create a service to get an API token for backups and heartbeats.">
-        <NuxtLink class="btn" to="/services?new=1">Create a service</NuxtLink>
+        <div class="row" style="justify-content: center">
+          <NuxtLink class="btn" to="/services?new=1">Create a service</NuxtLink>
+          <NuxtLink class="btn secondary" to="/destinations">Add a destination</NuxtLink>
+        </div>
       </EmptyState>
 
       <template v-if="data.recentBackups.length">
@@ -48,7 +51,7 @@ const { data, loading, error } = useLoader(() =>
         <div class="list">
           <div v-for="b in data.recentBackups" :key="b.id" class="list-item">
             <div class="grow">
-              <div class="title">{{ b.filename }}</div>
+              <div class="title"><FileName :name="b.filename" /></div>
               <div class="sub">{{ b.serviceName }} · {{ formatBytes(b.sizeBytes) }} · {{ timeAgo(b.createdAt) }}</div>
             </div>
             <StatusBadge :status="b.status" />
